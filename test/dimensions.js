@@ -90,7 +90,7 @@ describe('Dimensions', function () {
       const keys = [1, 2, 3].map((v) => HDKey.fromMasterSeed(Buffer(`test/${v}`)));
       const inputValue = 10;
 
-      const outputs = [
+      const unspents = [
         // add outputs of type p2sh (count defined by `nP2shInputs`)
         ..._.times(nP2shInputs, () => createOutput(keys, utxo.chain.codes.p2sh.internal)),
         // add outputs of type p2shP2wsh (count defined by `nP2shP2wshInputs`)
@@ -99,7 +99,7 @@ describe('Dimensions', function () {
         ..._.times(nP2wshInputs, () => createOutput(keys, utxo.chain.codes.p2wsh.internal))
       ];
 
-      const inputTx = createInputTx(keys[0], outputs, inputValue);
+      const inputTx = createInputTx(keys[0], unspents, inputValue);
       const txBuilder = new bitcoin.TransactionBuilder();
       const totalInputs = nP2shInputs + nP2shP2wshInputs + nP2wshInputs;
 
@@ -126,7 +126,7 @@ describe('Dimensions', function () {
           .should.eql(utxo.Dimensions.sum({ nP2wshInputs: totalInputs, nOutputs }));
       });
 
-      outputs.forEach(({ redeemScript, witnessScript }, i) =>
+      unspents.forEach(({ redeemScript, witnessScript }, i) =>
         keys.slice(0, 2).forEach((key) =>
           txBuilder.sign(
             i,
