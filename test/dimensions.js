@@ -89,7 +89,7 @@ describe('Dimensions', function () {
       [2, 2, 2, 1]
     ].map(([nP2shInputs, nP2shP2wshInputs, nP2wshInputs, nOutputs], i) => {
       const expectedDim = new utxo.Dimensions({ nP2shInputs, nP2shP2wshInputs, nP2wshInputs, nOutputs });
-      const keys = [1, 2, 3].map((v) => HDKey.fromMasterSeed(Buffer(`test/${v}`)));
+      const keys = [1, 2, 3].map((v) => HDKey.fromMasterSeed(Buffer.from(`test/${v}`)));
       const inputValue = 10;
 
       const unspents = [
