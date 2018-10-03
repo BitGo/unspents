@@ -46,23 +46,25 @@ describe('Dimensions', function () {
      */
     const createOutput = (keys, chain) => {
       const pubkeys = keys.map(({ publicKey }) => publicKey);
-      const script2Of3 = bitcoin.script.multisig.output.encode(2, pubkeys);
-      const witnessScriptHash = bitcoin.script.witnessScriptHash.output.encode(
-        bitcoin.crypto.sha256(script2Of3)
+      const script2of3 = bitcoin.script.multisig.output.encode(2, pubkeys);
+      const p2wshOutputScript = bitcoin.script.witnessScriptHash.output.encode(
+        bitcoin.crypto.sha256(script2of3)
       );
       let redeemScript, witnessScript;
       if (utxo.chain.isP2sh(chain)) {
-        redeemScript = script2Of3;
+        redeemScript = script2of3;
       } else if (utxo.chain.isP2shP2wsh(chain)) {
-        witnessScript = script2Of3;
-        redeemScript = witnessScriptHash;
+        witnessScript = script2of3;
+        redeemScript = p2wshOutputScript;
       } else if (utxo.chain.isP2wsh(chain)) {
-        witnessScript = script2Of3;
+        witnessScript = script2of3;
+      } else {
+        throw new Error(`invalid chain ${chain}`);
       }
 
       let address;
       if (utxo.chain.isP2wsh(chain)) {
-        address = bitcoin.address.fromOutputScript(witnessScriptHash);
+        address = bitcoin.address.fromOutputScript(p2wshOutputScript);
       } else {
         const redeemScriptHash = bitcoin.crypto.hash160(redeemScript);
         const scriptPubKey = bitcoin.script.scriptHash.output.encode(redeemScriptHash);
