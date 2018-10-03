@@ -17,9 +17,10 @@ const VirtualSizes = Object.freeze({
   // Source: https://bitcoin.stackexchange.com/q/57479/5406
   txP2shP2wshInputSize: 139,
   // https://bitgoinc.atlassian.net/browse/BG-5103#comment-33544
+  // FIXME(BG-7873): add support for signature grinding
   txP2wshInputSize: 105,
   // Standard output size
-  // FIXME(BG-5139) - add support for dynamic output sizes
+  // FIXME(BG-5139): add support for dynamic output sizes
   txOutputSize: 34,
   txOverheadSize: 10,
   // Segwit adds one byte each for marker and flag to the witness section. Thus, the vsize is only increased by one.
