@@ -62,8 +62,6 @@ Dimensions.sum = function (...args) {
  * @param [param.assumeUnsigned] - default type for unsigned input
  */
 Dimensions.fromInput = function ({ index, script, witness }, { assumeUnsigned } = {}) {
-  // FIXME: BG-5103
-  // Native Segwit inputs will not be P2SH-wrapped and thus will not have a script buffer
   const p2shInput = Dimensions.sum({ nP2shInputs: 1 });
   const p2shP2wshInput = Dimensions.sum({ nP2shP2wshInputs: 1 });
   const p2wshInput = Dimensions.sum({ nP2wshInputs: 1 });
@@ -102,7 +100,6 @@ Dimensions.fromUnspent = ({ chain }) => {
   }
 
   if (utxoChain.isP2sh(chain)) {
-    // FIXME(BG-6388): imprecise name
     return Dimensions.sum({ nP2shInputs: 1 });
   }
 
@@ -114,7 +111,6 @@ Dimensions.fromUnspent = ({ chain }) => {
     return Dimensions.sum({ nP2wshInputs: 1 });
   }
 
-  // FIXME(BG-5103): add support for p2wsh
   throw new Error(`unsupported chain ${chain}`);
 };
 
