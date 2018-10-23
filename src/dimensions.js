@@ -37,6 +37,18 @@ const Dimensions = t.struct({
   nOutputs: PositiveInteger
 });
 
+/**
+ * Return new Dimensions with all properties mapped by func
+ * @param dim - Dimensions to be mapped
+ * @param func - takes (value, key)
+ * @return {Dimensions} new dimensions
+ */
+const mapDimensions = (dim, func) => {
+  return Dimensions(_.fromPairs(_.map(Dimensions.meta.props, (prop, key) =>
+    [key, func(dim[key], key)]
+  )));
+};
+
 Dimensions.ASSUME_P2SH = Symbol('assume-p2sh');
 Dimensions.ASSUME_P2SH_P2WSH = Symbol('assume-p2sh-p2wsh');
 Dimensions.ASSUME_P2WSH = Symbol('assume-p2wsh');
@@ -90,7 +102,7 @@ Dimensions.fromInput = function ({ index, script, witness }, { assumeUnsigned } 
 
 /**
  * Return dimensions of an unspent according to `chain` parameter
- * @param params.chain
+ * @param params.chain - Chain code as defined by utxo.chain
  * @return {Dimensions} of the unspent
  * @throws if the chain code is invalid or unsupported
  */
@@ -140,11 +152,39 @@ Dimensions.fromTransaction = function ({ ins, outs }, { assumeUnsigned } = {}) {
 };
 
 /**
+ * Returns the dimensions of an output that will be created on a specific chain.
+ * Currently, this simply adds a default output.
+ *
+ * @param chain - Chain code as defined by utxo.chain
+ * @return {Dimensions} - Dimensions for a single output on the given chain.
+ */
+Dimensions.fromOutputOnChain = function (chain) {
+  // FIXME(BG-8391): estimate actual size here
+  if (!utxoChain.isValid(chain)) {
+    throw new TypeError('invalid chain code');
+  }
+  return Dimensions.sum({ nOutputs: 1 });
+};
+
+/**
  * @param dimensions (can be partially defined)
  * @return new dimensions with argument added
  */
 Dimensions.prototype.plus = function (dimensions) {
-  return new Dimensions(_.mergeWith({}, this, dimensions, (a = 0, b = 0) => a + b));
+  return mapDimensions(this, (v = 0, prop) => v + (dimensions[prop] || 0));
+};
+
+/**
+ * Multiply dimensions by a given factor
+ * @param factor - Positive integer
+ * @return {Dimensions}
+ */
+Dimensions.prototype.times = function (factor) {
+  if (!PositiveInteger.is(factor)) {
+    throw new TypeError(`expected factor to be positive integer`);
+  }
+
+  return mapDimensions(this, (v) => v * factor);
 };
 
 /**

@@ -37,6 +37,22 @@ describe('Dimensions', function () {
       nOutputs: 4
     }));
   });
+
+  it('multiplies correctly', function () {
+    utxo.Dimensions({
+      nP2shInputs: 1,
+      nP2shP2wshInputs: 2,
+      nP2wshInputs: 3,
+      nOutputs: 4
+    }).times(2).should.eql(
+      utxo.Dimensions({
+        nP2shInputs: 2,
+        nP2shP2wshInputs: 4,
+        nP2wshInputs: 6,
+        nOutputs: 8
+      })
+    )
+  });
   {
     /**
      * Return a P2SH-P2PKH or P2SH-P2WPKH
