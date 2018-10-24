@@ -24,11 +24,12 @@
   },
   "homepage": "https://github.com/BitGo/bitgo-utxo-dimensions#readme",
   "devDependencies": {
+    "bitgo-utxo-lib": "^1.1.2",
     "mocha": "^5.2.0",
-    "should": "^13.2.3"
+    "should": "^13.2.3",
+    "lodash.combinations": "^18.9.19"
   },
   "dependencies": {
-    "bitgo-utxo-lib": "^1.1.2",
     "lodash": "^4.17.11",
     "tcomb": "^3.2.27"
   }

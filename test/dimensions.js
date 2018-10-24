@@ -1,3 +1,4 @@
+require('lodash.combinations');
 const _ = require('lodash');
 const should = require('should');
 
@@ -5,6 +6,35 @@ const HDKey = require('hdkey');
 const bitcoin = require('bitgo-utxo-lib');
 
 const utxo = require('../src');
+
+/**
+ * makeEnum('a', 'b') returns `{ a: 'a', b: 'b' }`
+ *
+ * @param args
+ * @return map with string keys and symbol values
+ */
+const makeEnum = (...args) =>
+  args.reduce((obj, key) => Object.assign(obj, { [key]: key }), {});
+
+const UnspentTypeScript2of3 = makeEnum('p2sh', 'p2shP2wsh', 'p2wsh');
+const UnspentTypePubKeyHash = makeEnum('p2pkh', 'p2wpkh');
+
+/**
+ * Return the input dimensions based on unspent type
+ * @param unspentType - one of UnspentTypeScript2of3
+ * @return Dimensions
+ */
+const getInputDimensionsForUnspentType = (unspentType) => {
+  switch (unspentType) {
+    case UnspentTypeScript2of3.p2sh:
+      return { nP2shInputs: 1 };
+    case UnspentTypeScript2of3.p2shP2wsh:
+      return { nP2shP2wshInputs: 1 };
+    case UnspentTypeScript2of3.p2wsh:
+      return { nP2wshInputs: 1 };
+  }
+  throw new Error(`no input dimensions for ${unspentType}`);
+};
 
 describe('Dimensions', function () {
   it('sums correctly', function () {
@@ -55,31 +85,35 @@ describe('Dimensions', function () {
   });
   {
     /**
-     * Return a P2SH-P2PKH or P2SH-P2WPKH
+     * Return a 2-of-3 multisig output
      * @param keys - the key array for multisig
-     * @param chain - the type of output to create
+     * @param unspentType - one of UnspentTypeScript2of3
      * @returns {{redeemScript, witnessScript, address}}
      */
-    const createOutput = (keys, chain) => {
+    const createOutputScript2of3 = (keys, unspentType) => {
       const pubkeys = keys.map(({ publicKey }) => publicKey);
       const script2of3 = bitcoin.script.multisig.output.encode(2, pubkeys);
       const p2wshOutputScript = bitcoin.script.witnessScriptHash.output.encode(
         bitcoin.crypto.sha256(script2of3)
       );
       let redeemScript, witnessScript;
-      if (utxo.chain.isP2sh(chain)) {
-        redeemScript = script2of3;
-      } else if (utxo.chain.isP2shP2wsh(chain)) {
-        witnessScript = script2of3;
-        redeemScript = p2wshOutputScript;
-      } else if (utxo.chain.isP2wsh(chain)) {
-        witnessScript = script2of3;
-      } else {
-        throw new Error(`invalid chain ${chain}`);
+      switch (unspentType) {
+        case UnspentTypeScript2of3.p2sh:
+          redeemScript = script2of3;
+          break;
+        case UnspentTypeScript2of3.p2shP2wsh:
+          witnessScript = script2of3;
+          redeemScript = p2wshOutputScript;
+          break;
+        case UnspentTypeScript2of3.p2wsh:
+          witnessScript = script2of3;
+          break;
+        default:
+          throw new Error(`unknown multisig output type ${unspentType}`);
       }
 
       let address;
-      if (utxo.chain.isP2wsh(chain)) {
+      if (unspentType === UnspentTypeScript2of3.p2wsh) {
         address = bitcoin.address.fromOutputScript(p2wshOutputScript);
       } else {
         const redeemScriptHash = bitcoin.crypto.hash160(redeemScript);
@@ -90,58 +124,67 @@ describe('Dimensions', function () {
       return { redeemScript, witnessScript, address };
     };
 
-    const createInputTx = (key, outputs, inputValue) => {
+    /**
+     *
+     * @param keys - Pubkeys to use for generating the address.
+     *               If unspentType is one of UnspentTypePubKeyHash is used, the first key will be used.
+     * @param unspentType {String} - one of UnspentTypeScript2of3 or UnspentTypePubKeyHash
+     * @return {String} address
+     */
+    const createAddress = (keys, unspentType) => {
+      if (UnspentTypeScript2of3[unspentType]) {
+        return createOutputScript2of3(keys, unspentType).address;
+      }
+
+      const key = keys[0];
+      const pkHash = bitcoin.crypto.hash160(key.publicKey);
+      let scriptPubKey;
+      switch (unspentType) {
+        case UnspentTypePubKeyHash.p2pkh:
+          scriptPubKey = bitcoin.script.pubKeyHash.output.encode(pkHash);
+          break;
+        case UnspentTypePubKeyHash.p2wpkh:
+          scriptPubKey = bitcoin.script.witnessPubKeyHash.output.encode(pkHash);
+          break;
+        default:
+          throw new Error(`unsupported output type ${unspentType}`);
+      }
+      return bitcoin.address.fromOutputScript(scriptPubKey);
+    };
+
+    const createInputTx = (unspents, inputValue) => {
       const txInputBuilder = new bitcoin.TransactionBuilder();
       txInputBuilder.addInput(Array(32).fill('01').join(''), 0);
-      outputs.forEach(({ address }) => txInputBuilder.addOutput(address, inputValue) );
+      unspents.forEach(({ address }) => txInputBuilder.addOutput(address, inputValue));
       return txInputBuilder.buildIncomplete();
     };
 
-    [
-      [1, 0, 0, 1],
-      [0, 1, 0, 1],
-      [0, 0, 1, 1],
-      [1, 1, 1, 1],
-      [2, 2, 2, 1]
-    ].map(([nP2shInputs, nP2shP2wshInputs, nP2wshInputs, nOutputs], i) => {
-      const expectedDim = new utxo.Dimensions({ nP2shInputs, nP2shP2wshInputs, nP2wshInputs, nOutputs });
+    const testDimensionsFromTx = (inputTypes, outputTypes, expectedDim) => {
+      const testName = `inputs=${inputTypes}; outputs=${outputTypes}`;
+      const nInputs = inputTypes.length;
+      const nOutputs = outputTypes.length;
       const keys = [1, 2, 3].map((v) => HDKey.fromMasterSeed(Buffer.from(`test/${v}`)));
       const inputValue = 10;
 
-      const unspents = [
-        // add outputs of type p2sh (count defined by `nP2shInputs`)
-        ..._.times(nP2shInputs, () => createOutput(keys, utxo.chain.codes.p2sh.internal)),
-        // add outputs of type p2shP2wsh (count defined by `nP2shP2wshInputs`)
-        ..._.times(nP2shP2wshInputs, () => createOutput(keys, utxo.chain.codes.p2shP2wsh.internal)),
-        // add outputs of type p2wsh (count defined by `nP2wshInputs`)
-        ..._.times(nP2wshInputs, () => createOutput(keys, utxo.chain.codes.p2wsh.internal))
-      ];
-
-      const inputTx = createInputTx(keys[0], unspents, inputValue);
+      const unspents = inputTypes.map((inputType) => createOutputScript2of3(keys, inputType));
+      const inputTx = createInputTx(unspents, inputValue);
       const txBuilder = new bitcoin.TransactionBuilder();
-      const totalInputs = nP2shInputs + nP2shP2wshInputs + nP2wshInputs;
-
       inputTx.outs.forEach(({}, i) => txBuilder.addInput(inputTx, i));
-      _.times(expectedDim.nOutputs,
-        () => {
-          const { address } = createOutput(keys, utxo.chain.codes.p2sh.internal);
-          txBuilder.addOutput(address, inputValue);
-        }
-      );
+      outputTypes.forEach(unspentType => txBuilder.addOutput(createAddress(keys, unspentType), inputValue));
 
-      it(`calculates dimensions from unsigned transaction ${i}`, function () {
+      it(`calculates dimensions from unsigned transaction [${testName}]`, function () {
         // does not work for unsigned transactions
         should.throws(() => utxo.Dimensions.fromTransaction(txBuilder.tx));
 
         // unless explicitly allowed
         utxo.Dimensions.fromTransaction(txBuilder.tx, { assumeUnsigned: utxo.Dimensions.ASSUME_P2SH })
-          .should.eql(utxo.Dimensions.sum({ nP2shInputs: totalInputs, nOutputs }));
+          .should.eql(utxo.Dimensions.sum({ nP2shInputs: nInputs, nOutputs }));
 
         utxo.Dimensions.fromTransaction(txBuilder.tx, { assumeUnsigned: utxo.Dimensions.ASSUME_P2SH_P2WSH })
-          .should.eql(utxo.Dimensions.sum({ nP2shP2wshInputs: totalInputs, nOutputs }));
+          .should.eql(utxo.Dimensions.sum({ nP2shP2wshInputs: nInputs, nOutputs }));
 
         utxo.Dimensions.fromTransaction(txBuilder.tx, { assumeUnsigned: utxo.Dimensions.ASSUME_P2WSH })
-          .should.eql(utxo.Dimensions.sum({ nP2wshInputs: totalInputs, nOutputs }));
+          .should.eql(utxo.Dimensions.sum({ nP2wshInputs: nInputs, nOutputs }));
       });
 
       unspents.forEach(({ redeemScript, witnessScript }, i) =>
@@ -158,23 +201,51 @@ describe('Dimensions', function () {
       );
       const signedTx = txBuilder.build();
 
-      it(`calculates dimensions for signed transaction ${i}`, function () {
+      it(`calculates dimensions for signed transaction [${testName}]`, function () {
         const dimensions = utxo.Dimensions.fromTransaction(signedTx);
         dimensions.should.eql(expectedDim);
-        dimensions.getNInputs().should.eql(totalInputs);
+        dimensions.getNInputs().should.eql(nInputs);
       });
 
-      it(`calculates dimensions for signed input of transaction ${i}`, function () {
+      it(`calculates dimensions for signed input of transaction [${testName}]`, function () {
         // test Dimensions.fromInput()
-        [
-          ..._.times(nP2shInputs, () => ({ nP2shInputs: 1 })),
-          ..._.times(nP2shP2wshInputs, () => ({ nP2shP2wshInputs: 1 })),
-          ..._.times(nP2wshInputs, () => ({ nP2wshInputs: 1 }))
-        ].forEach((expectedInputDim, i) =>
-          utxo.Dimensions.fromInput(signedTx.ins[i]).should.eql(utxo.Dimensions.sum(expectedInputDim))
+        inputTypes.forEach((input, i) =>
+          utxo.Dimensions.fromInput(signedTx.ins[i])
+            .should.eql(utxo.Dimensions.sum(getInputDimensionsForUnspentType(input)))
         );
       });
-    });
+    };
+
+    const inputTypes = Object.keys(UnspentTypeScript2of3);
+    const outputTypes = [...inputTypes, ...Object.keys(UnspentTypePubKeyHash)];
+
+    // Create combinations of different input and output types. Length between 1 and 3.
+    const inputCombinations = _.flatten([1,2,3].map(i => _.combinations(inputTypes, i)));
+    const outputCombinations = _.flatten([1,2,3].map(i => _.combinations(outputTypes, i)));
+
+    inputCombinations.forEach(inputTypeCombo =>
+      outputCombinations.forEach(outputTypeCombo => {
+        const expectedInputDims = utxo.Dimensions.sum(...inputTypeCombo.map(getInputDimensionsForUnspentType));
+        const expectedOutputDims = utxo.Dimensions.sum({ nOutputs: outputTypeCombo.length });
+
+        testDimensionsFromTx(
+          inputTypeCombo, outputTypeCombo,
+          expectedInputDims.plus(expectedOutputDims)
+        );
+
+        // Doubling the inputs should yield twice the input dims
+        testDimensionsFromTx(
+          [...inputTypeCombo, ...inputTypeCombo], outputTypeCombo,
+          expectedInputDims.plus(expectedInputDims).plus(expectedOutputDims)
+        );
+
+        // Same for outputs
+        testDimensionsFromTx(
+          inputTypeCombo, [...outputTypeCombo, ...outputTypeCombo],
+          expectedInputDims.plus(expectedOutputDims).plus(expectedOutputDims)
+        );
+      })
+    );
   }
 
   it('determines unspent size according to chain', function () {
