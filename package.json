@@ -25,9 +25,11 @@
   "homepage": "https://github.com/BitGo/bitgo-utxo-dimensions#readme",
   "devDependencies": {
     "bitgo-utxo-lib": "^1.1.2",
+    "hdkey": "^1.1.0",
+    "lodash.combinations": "^18.9.19",
     "mocha": "^5.2.0",
-    "should": "^13.2.3",
-    "lodash.combinations": "^18.9.19"
+    "mocha-junit-reporter": "^1.18.0",
+    "should": "^13.2.3"
   },
   "dependencies": {
     "lodash": "^4.17.11",
