@@ -4,7 +4,9 @@ const t = require('tcomb');
 const utxoChain = require('./chain');
 const { PositiveInteger } = require('./types');
 
+
 // Constants for signed TX input and output vsizes.
+// See https://bitcoincore.org/en/segwit_wallet_dev/#transaction-serialization for full description
 const VirtualSizes = Object.freeze({
   // Size of a P2PKH input with (un)compressed key
   // Source: https://bitcoin.stackexchange.com/questions/48279/how-big-is-the-input-of-a-p2pkh-transaction
@@ -12,8 +14,8 @@ const VirtualSizes = Object.freeze({
   txP2pkhInputSizeUncompressedKey: 180,
   // Size of a signed P2SH multisig input.
   txP2shInputSize: 296,
-  // A signed P2SH-P2WSH (wrapped P2WSH) input has approximately 552 bytes weight, but we're making a conservative
-  // estimate with 139 bytes vsize.
+  // A signed P2SH-P2WSH (wrapped P2WSH) input has approximately 552 bytes weight,
+  // but we're making a conservative estimate with 139 bytes vsize.
   // Source: https://bitcoin.stackexchange.com/q/57479/5406
   txP2shP2wshInputSize: 139,
   // https://bitgoinc.atlassian.net/browse/BG-5103#comment-33544
@@ -23,12 +25,20 @@ const VirtualSizes = Object.freeze({
   // FIXME(BG-5139): add support for dynamic output sizes
   txOutputSize: 34,
   txOverheadSize: 10,
-  // Segwit adds one byte each for marker and flag to the witness section. Thus, the vsize is only increased by one.
+  // Segwit adds one byte each for marker and flag to the witness section.
+  // Thus, the vsize is only increased by one.
   txSegOverheadVSize: 11
 });
 
+
 /**
- * The transaction parameters required for fee calculation
+ * The transaction parameters required for vsize estimation.
+ * The total vsize of a transaction (`getVSize()`) is the sum of:
+ * - the overhead vsize (`getOverheadVSize()`),
+ * - the inputs vsize (`getInputsVSize()`)
+ * - the outputs vsize (`getOutputsVSize()`)
+ * See https://bitcoincore.org/en/segwit_wallet_dev/#transaction-serialization
+ * for explanation of the different components.
  */
 const Dimensions = t.struct({
   nP2shInputs: PositiveInteger,
@@ -36,6 +46,7 @@ const Dimensions = t.struct({
   nP2wshInputs: PositiveInteger,
   nOutputs: PositiveInteger
 });
+
 
 /**
  * Return new Dimensions with all properties mapped by func
@@ -49,9 +60,11 @@ const mapDimensions = (dim, func) => {
   )));
 };
 
+
 Dimensions.ASSUME_P2SH = Symbol('assume-p2sh');
 Dimensions.ASSUME_P2SH_P2WSH = Symbol('assume-p2sh-p2wsh');
 Dimensions.ASSUME_P2WSH = Symbol('assume-p2wsh');
+
 
 /**
  * Dimensions object where all properties are 0
@@ -61,6 +74,7 @@ Dimensions.zero = function () {
   return new Dimensions({ nP2shInputs: 0, nP2shP2wshInputs: 0, nP2wshInputs: 0, nOutputs: 0 });
 };
 
+
 /**
  * @param args - Dimensions (can be partially defined)
  * @return sum of arguments
@@ -68,6 +82,7 @@ Dimensions.zero = function () {
 Dimensions.sum = function (...args) {
   return args.reduce((a, b) => Dimensions(a).plus(b), Dimensions.zero());
 };
+
 
 /**
  * @param unspent - the unspent to count
@@ -99,6 +114,7 @@ Dimensions.fromInput = function ({ index, script, witness }, { assumeUnsigned } 
 
   return witness.length ? p2shP2wshInput : p2shInput;
 };
+
 
 /**
  * Return dimensions of an unspent according to `chain` parameter
@@ -139,6 +155,7 @@ Dimensions.fromUnspents = function (unspents) {
   return Dimensions.sum(...unspents.map(Dimensions.fromUnspent));
 };
 
+
 /**
  * @param transaction - bitcoin-like transaction
  * @param [param.assumeUnsigned] - default type for unsigned inputs
@@ -150,6 +167,7 @@ Dimensions.fromTransaction = function ({ ins, outs }, { assumeUnsigned } = {}) {
     { nOutputs: outs.length }
   );
 };
+
 
 /**
  * Returns the dimensions of an output that will be created on a specific chain.
@@ -166,6 +184,7 @@ Dimensions.fromOutputOnChain = function (chain) {
   return Dimensions.sum({ nOutputs: 1 });
 };
 
+
 /**
  * @param dimensions (can be partially defined)
  * @return new dimensions with argument added
@@ -173,6 +192,7 @@ Dimensions.fromOutputOnChain = function (chain) {
 Dimensions.prototype.plus = function (dimensions) {
   return mapDimensions(this, (v = 0, prop) => v + (dimensions[prop] || 0));
 };
+
 
 /**
  * Multiply dimensions by a given factor
@@ -187,40 +207,72 @@ Dimensions.prototype.times = function (factor) {
   return mapDimensions(this, (v) => v * factor);
 };
 
+
 /**
- * @return Number of total inputs (Segwit and P2SH)
+ * @return Number of total inputs (p2sh, p2shP2wsh and p2wsh)
  */
 Dimensions.prototype.getNInputs = function () {
   return this.nP2shInputs + this.nP2shP2wshInputs + this.nP2wshInputs;
 };
 
+
 /**
- * Estimates the virtual size (1/4 weight) of a signed transaction with segwit and legacy multisig inputs.
- * @returns {Number} The estimated vsize of the transaction.
+ * @returns {boolean} true iff dimensions have one or more (p2sh)p2wsh inputs
  */
-Dimensions.prototype.getVSize = function () {
+Dimensions.prototype.isSegwit = function () {
+  return (this.nP2wshInputs + this.nP2shP2wshInputs) > 0;
+};
+
+
+/**
+ * @return {Number} overhead vsize, based on result isSegwit().
+ */
+Dimensions.prototype.getOverheadVSize = function () {
+  return this.isSegwit()
+    ? VirtualSizes.txSegOverheadVSize
+    : VirtualSizes.txOverheadSize;
+};
+
+
+/**
+ * @returns {number} vsize of inputs, without transaction overhead
+ */
+Dimensions.prototype.getInputsVSize = function () {
   const {
     txP2shInputSize,
     txP2shP2wshInputSize,
     txP2wshInputSize,
-    txOutputSize,
-    txOverheadSize,
-    txSegOverheadVSize
   } = VirtualSizes;
 
-  const { nP2shInputs, nP2shP2wshInputs, nP2wshInputs, nOutputs } = this;
+  const {
+    nP2shInputs,
+    nP2shP2wshInputs,
+    nP2wshInputs
+  } = this;
 
-  const overheadSize = ((nP2wshInputs + nP2shP2wshInputs) > 0) ? txSegOverheadVSize : txOverheadSize;
-  const totalP2shInputSize = nP2shInputs * txP2shInputSize;
-  const totalP2shP2wshInputSize = nP2shP2wshInputs * txP2shP2wshInputSize;
-  const totalP2wshInputSize = nP2wshInputs * txP2wshInputSize;
-  const totalOutputSize = nOutputs * txOutputSize;
-
-  return overheadSize +
-    totalP2shInputSize +
-    totalP2shP2wshInputSize +
-    totalP2wshInputSize +
-    totalOutputSize;
+  return nP2shInputs * txP2shInputSize +
+    nP2shP2wshInputs * txP2shP2wshInputSize +
+    nP2wshInputs * txP2wshInputSize;
 };
+
+
+/**
+ * @returns {number} return vsize of outputs, without overhead
+ */
+Dimensions.prototype.getOutputsVSize = function () {
+  return this.nOutputs * VirtualSizes.txOutputSize;
+};
+
+
+/**
+ * Estimates the virtual size (1/4 weight) of a signed transaction as sum of
+ * overhead vsize, input vsize and output vsize.
+ * @returns {Number} The estimated vsize of the transaction dimensions.
+ */
+Dimensions.prototype.getVSize = function () {
+  // FIXME(BG-9233): use weight units instead
+  return this.getOverheadVSize() + this.getInputsVSize() + this.getOutputsVSize();
+};
+
 
 module.exports = { VirtualSizes, Dimensions };

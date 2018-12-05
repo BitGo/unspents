@@ -274,28 +274,36 @@ describe('Dimensions', function () {
     ]).should.eql(utxo.Dimensions({ nP2shP2wshInputs: 2, nP2shInputs: 2, nP2wshInputs: 2, nOutputs: 0 }));
   });
 
-  it('calculates vsize', function () {
-    [
-      [1, 0, 0, 1, 340],
-      [0, 1, 0, 1, 184],
-      [0, 0, 1, 1, 150],
-      [2, 0, 0, 1, 636],
-      [0, 2, 0, 1, 323],
-      [0, 0, 2, 1, 255],
-      [1, 1, 1, 1, 585]
-    ].forEach(([
+  it('calculates vsizes', function () {
+    const dim = (
+      nP2shInputs,
+      nP2shP2wshInputs,
+      nP2wshInputs,
+      nOutputs
+    ) => new utxo.Dimensions({
       nP2shInputs,
       nP2shP2wshInputs,
       nP2wshInputs,
       nOutputs,
-      expectedVSize
-    ]) => {
-      new utxo.Dimensions({
-        nP2shInputs,
-        nP2shP2wshInputs,
-        nP2wshInputs,
-        nOutputs,
-      }).getVSize().should.eql(expectedVSize);
+    });
+
+    [
+      [dim(1, 0, 0, 1), [false, 10, 296, 34, 340]],
+      [dim(0, 1, 0, 1), [true,  11, 139, 34, 184]],
+      [dim(0, 0, 1, 1), [true,  11, 105, 34, 150]],
+      [dim(2, 0, 0, 1), [false, 10, 592, 34, 636]],
+      [dim(0, 2, 0, 1), [true,  11, 278, 34, 323]],
+      [dim(0, 0, 2, 1), [true,  11, 210, 34, 255]],
+      [dim(1, 1, 1, 1), [true,  11, 540, 34, 585]],
+      [dim(1, 1, 1, 2), [true,  11, 540, 68, 619]],
+    ].forEach(([dimensions, expectedSizes]) => {
+      [
+        dimensions.isSegwit(),
+        dimensions.getOverheadVSize(),
+        dimensions.getInputsVSize(),
+        dimensions.getOutputsVSize(),
+        dimensions.getVSize()
+      ].should.eql(expectedSizes);
     });
   });
 });
