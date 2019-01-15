@@ -8,34 +8,14 @@ const bitcoin = require('bitgo-utxo-lib');
 
 const utxo = require('../src');
 
-/**
- * makeEnum('a', 'b') returns `{ a: 'a', b: 'b' }`
- *
- * @param args
- * @return map with string keys and symbol values
- */
-const makeEnum = (...args) =>
-  args.reduce((obj, key) => Object.assign(obj, { [key]: key }), {});
+const {
+  UnspentTypeScript2of3,
+  UnspentTypePubKeyHash,
+  UnspentTypeOpReturn,
+  getInputDimensionsForUnspentType,
+  getOutputDimensionsForUnspentType,
+} = require('./testutils');
 
-const UnspentTypeScript2of3 = makeEnum('p2sh', 'p2shP2wsh', 'p2wsh');
-const UnspentTypePubKeyHash = makeEnum('p2pkh', 'p2wpkh');
-
-/**
- * Return the input dimensions based on unspent type
- * @param unspentType - one of UnspentTypeScript2of3
- * @return Dimensions
- */
-const getInputDimensionsForUnspentType = (unspentType) => {
-  switch (unspentType) {
-    case UnspentTypeScript2of3.p2sh:
-      return { nP2shInputs: 1 };
-    case UnspentTypeScript2of3.p2shP2wsh:
-      return { nP2shP2wshInputs: 1 };
-    case UnspentTypeScript2of3.p2wsh:
-      return { nP2wshInputs: 1 };
-  }
-  throw new Error(`no input dimensions for ${unspentType}`);
-};
 
 /**
  * Return a 2-of-3 multisig output
@@ -65,16 +45,15 @@ const createOutputScript2of3 = (keys, unspentType) => {
       throw new Error(`unknown multisig output type ${unspentType}`);
   }
 
-  let address;
+  let scriptPubKey;
   if (unspentType === UnspentTypeScript2of3.p2wsh) {
-    address = bitcoin.address.fromOutputScript(p2wshOutputScript);
+    scriptPubKey = p2wshOutputScript;
   } else {
     const redeemScriptHash = bitcoin.crypto.hash160(redeemScript);
-    const scriptPubKey = bitcoin.script.scriptHash.output.encode(redeemScriptHash);
-    address = bitcoin.address.fromOutputScript(scriptPubKey);
+    scriptPubKey = bitcoin.script.scriptHash.output.encode(redeemScriptHash);
   }
 
-  return { redeemScript, witnessScript, address };
+  return { redeemScript, witnessScript, scriptPubKey };
 };
 
 
@@ -85,32 +64,33 @@ const createOutputScript2of3 = (keys, unspentType) => {
  * @param unspentType {String} - one of UnspentTypeScript2of3 or UnspentTypePubKeyHash
  * @return {String} address
  */
-const createAddress = (keys, unspentType) => {
+const createScriptPubKey = (keys, unspentType) => {
   if (UnspentTypeScript2of3[unspentType]) {
-    return createOutputScript2of3(keys, unspentType).address;
+    return createOutputScript2of3(keys, unspentType).scriptPubKey;
   }
 
   const key = keys[0];
   const pkHash = bitcoin.crypto.hash160(key.publicKey);
-  let scriptPubKey;
   switch (unspentType) {
     case UnspentTypePubKeyHash.p2pkh:
-      scriptPubKey = bitcoin.script.pubKeyHash.output.encode(pkHash);
-      break;
+      return bitcoin.script.pubKeyHash.output.encode(pkHash);
     case UnspentTypePubKeyHash.p2wpkh:
-      scriptPubKey = bitcoin.script.witnessPubKeyHash.output.encode(pkHash);
-      break;
-    default:
-      throw new Error(`unsupported output type ${unspentType}`);
+      return bitcoin.script.witnessPubKeyHash.output.encode(pkHash);
   }
-  return bitcoin.address.fromOutputScript(scriptPubKey);
+
+  if (unspentType instanceof UnspentTypeOpReturn) {
+    const payload = Array(unspentType.size).fill('01');
+    return bitcoin.script.nullData.output.encode(payload);
+  }
+
+  throw new Error(`unsupported output type ${unspentType}`);
 };
 
 
 const createInputTx = (unspents, inputValue) => {
   const txInputBuilder = new bitcoin.TransactionBuilder();
   txInputBuilder.addInput(Array(32).fill('01').join(''), 0);
-  unspents.forEach(({ address }) => txInputBuilder.addOutput(address, inputValue));
+  unspents.forEach(({ scriptPubKey }) => txInputBuilder.addOutput(scriptPubKey, inputValue));
   return txInputBuilder.buildIncomplete();
 };
 
@@ -130,7 +110,7 @@ class TxCombo {
     const txBuilder = new bitcoin.TransactionBuilder();
     this.inputTx.outs.forEach(({}, i) => txBuilder.addInput(this.inputTx, i));
     this.outputTypes.forEach(
-      unspentType => txBuilder.addOutput(createAddress(this.keys, unspentType), this.inputValue)
+      unspentType => txBuilder.addOutput(createScriptPubKey(this.keys, unspentType), this.inputValue)
     );
     return txBuilder;
   }
@@ -162,7 +142,7 @@ const testDimensionsFromTx = (txCombo) => {
 
   describe(`Combination inputs=${inputTypes}; outputs=${outputTypes}`, function () {
     const nInputs = inputTypes.length;
-    const nOutputs = outputTypes.length;
+    const outputDims = utxo.Dimensions.sum(...outputTypes.map(getOutputDimensionsForUnspentType));
 
     it(`calculates dimensions from unsigned transaction`, function () {
       const unsignedTx = txCombo.getUnsignedTx();
@@ -172,20 +152,18 @@ const testDimensionsFromTx = (txCombo) => {
 
       // unless explicitly allowed
       utxo.Dimensions.fromTransaction(unsignedTx, { assumeUnsigned: utxo.Dimensions.ASSUME_P2SH })
-        .should.eql(utxo.Dimensions.sum({ nP2shInputs: nInputs, nOutputs }));
+        .should.eql(utxo.Dimensions.sum({ nP2shInputs: nInputs }, outputDims));
 
       utxo.Dimensions.fromTransaction(unsignedTx, { assumeUnsigned: utxo.Dimensions.ASSUME_P2SH_P2WSH })
-        .should.eql(utxo.Dimensions.sum({ nP2shP2wshInputs: nInputs, nOutputs }));
+        .should.eql(utxo.Dimensions.sum({ nP2shP2wshInputs: nInputs }, outputDims));
 
       utxo.Dimensions.fromTransaction(unsignedTx, { assumeUnsigned: utxo.Dimensions.ASSUME_P2WSH })
-        .should.eql(utxo.Dimensions.sum({ nP2wshInputs: nInputs, nOutputs }));
+        .should.eql(utxo.Dimensions.sum({ nP2wshInputs: nInputs }, outputDims));
     });
 
     it(`calculates dimensions for signed transaction`, function () {
       const dimensions = utxo.Dimensions.fromTransaction(txCombo.getSignedTx());
       dimensions.should.eql(expectedDims);
-      dimensions.getNInputs().should.eql(nInputs);
-      dimensions.nOutputs.should.eql(nOutputs);
     });
 
     it(`calculates dimensions for signed input of transaction`, function () {
@@ -220,7 +198,7 @@ describe(`Dimensions for transaction combinations`, function () {
 
   runAllCombinations(inputTypes, outputTypes, (inputTypeCombo, outputTypeCombo) => {
     const expectedInputDims = utxo.Dimensions.sum(...inputTypeCombo.map(getInputDimensionsForUnspentType));
-    const expectedOutputDims = utxo.Dimensions.sum({ nOutputs: outputTypeCombo.length });
+    const expectedOutputDims = utxo.Dimensions.sum(...outputTypeCombo.map(getOutputDimensionsForUnspentType));
 
     const keys = [1, 2, 3].map((v) => HDKey.fromMasterSeed(Buffer.from(`test/2/${v}`)));
 
@@ -258,21 +236,18 @@ describe(`Dimensions for transaction combinations`, function () {
 
 describe(`Dimension estimation errors`, function () {
   const inputTypes = Object.keys(UnspentTypeScript2of3);
-  const outputTypes = [...inputTypes, ...Object.keys(UnspentTypePubKeyHash)];
+  const outputTypes = [
+    ...inputTypes,
+    ...Object.keys(UnspentTypePubKeyHash),
+    new UnspentTypeOpReturn(16),
+    new UnspentTypeOpReturn(32)
+  ];
 
   /* eslint-disable no-multi-spaces, array-bracket-spacing */
   const expectedInputErrors = new Map([
     [UnspentTypeScript2of3.p2sh,      [-1, 3]],
     [UnspentTypeScript2of3.p2shP2wsh, [ 0, 0]],
     [UnspentTypeScript2of3.p2wsh,     [ 1, 1]],
-  ]);
-
-  const expectedOutputErrors = new Map([
-    [UnspentTypeScript2of3.p2sh,       2],
-    [UnspentTypeScript2of3.p2shP2wsh,  2],
-    [UnspentTypeScript2of3.p2wsh,     -9],
-    [UnspentTypePubKeyHash.p2pkh,      0],
-    [UnspentTypePubKeyHash.p2wpkh,     3],
   ]);
   /* eslint-enable no-multi-spaces, array-bracket-spacing */
 
@@ -327,7 +302,7 @@ describe(`Dimension estimation errors`, function () {
       });
 
     outputTypes.forEach((outputType) => {
-      const outputs = outputKeyTriplets.map((outputKeys) => createAddress(outputKeys, outputType));
+      const outputs = outputKeyTriplets.map((outputKeys) => createScriptPubKey(outputKeys, outputType));
 
       it(`should have correct vsize error bounds for input=${inputType} and output=${outputType}`, function () {
         this.timeout(20000);
@@ -336,10 +311,10 @@ describe(`Dimension estimation errors`, function () {
           const txBuilder = new bitcoin.TransactionBuilder(undefined, Infinity);
           inputTx.outs.forEach((_, i) => txBuilder.addInput(inputTx, i));
 
-          outputs.forEach((address) => {
+          outputs.forEach((scriptPubKey) => {
             txBuilder.tx.outs = [];
             txBuilder.inputs.forEach((i) => { delete i.signatures; });
-            txBuilder.addOutput(address, outputValue);
+            txBuilder.addOutput(scriptPubKey, outputValue);
             const { redeemScript, witnessScript } = unspent;
             inputKeys.slice(0, 2).forEach(key => txBuilder.sign(
               0,
@@ -355,7 +330,7 @@ describe(`Dimension estimation errors`, function () {
             const totalVSize = tx.virtualSize();
             const outputsVSize = totalVSize - Object.assign(tx.clone(), { outs: [] }).virtualSize();
             const outputVSizeError = (dims.getOutputsVSize() - outputsVSize);
-            outputVSizeError.should.eql(expectedOutputErrors.get(outputType));
+            outputVSizeError.should.eql(0);
 
             const overheadPlusInputsVSize = totalVSize - outputsVSize;
             const inputVSizeError = (dims.getOverheadVSize() + dims.getInputsVSize()) - overheadPlusInputsVSize;

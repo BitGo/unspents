@@ -1,4 +1,21 @@
+const should = require('should');
+
 const utxo = require('../src');
+
+const {
+  UnspentTypeScript2of3,
+  UnspentTypePubKeyHash,
+  getOutputDimensionsForUnspentType,
+} = require('./testutils');
+
+
+describe('Dimensions Attributes', function () {
+  it('has read-only nInputs and nOutputs', function () {
+    should.throws(() => utxo.Dimensions.zero().nInputs = 1, /read-only/);
+    should.throws(() => utxo.Dimensions.zero().nOutputs = 1, /read-only/);
+  });
+});
+
 
 describe('Dimensions Arithmetic', function () {
   it('sums correctly', function () {
@@ -6,21 +23,27 @@ describe('Dimensions Arithmetic', function () {
       nP2shInputs: 1,
       nP2shP2wshInputs: 0,
       nP2wshInputs: 0,
-      nOutputs: 0
+      outputs: { size: 0, count: 0 },
     }));
 
     const components = [
       { nP2shInputs: 1 },
       { nP2shP2wshInputs: 2 },
       { nP2wshInputs: 3 },
-      { nOutputs: 4 }
+      { outputs: { size: 23, count: 1 } },
+      { outputs: { size: 44, count: 2 } },
+      { outputs: { size: 0, count: 0 } }
     ];
+
+    components.forEach((component) => should.doesNotThrow(() => utxo.Dimensions.sum(component)));
 
     const sum = utxo.Dimensions.zero()
       .plus(components[0])
       .plus(components[1])
       .plus(components[2])
-      .plus(components[3]);
+      .plus(components[3])
+      .plus(components[4])
+      .plus(components[5]);
 
     sum.should.eql(utxo.Dimensions.sum(...components));
 
@@ -28,22 +51,36 @@ describe('Dimensions Arithmetic', function () {
       nP2shInputs: 1,
       nP2shP2wshInputs: 2,
       nP2wshInputs: 3,
-      nOutputs: 4
+      outputs: { size: 67, count: 3 }
     }));
+
+    sum.nOutputs.should.eql(sum.outputs.count);
   });
+
+  it('prevents sum of invalid data', function () {
+    should.doesNotThrow(() => utxo.Dimensions.sum({ outputs: { count: 0, size: 0 } }));
+    should.doesNotThrow(() => utxo.Dimensions.sum({ outputs: { count: 1, size: 1 } }));
+    should.throws(() => utxo.Dimensions.sum({ nOutputs: 1 }));
+    should.throws(() => utxo.Dimensions.sum({ nOutputs: 1, outputs: { count: 2, size: 1 } }));
+    should.throws(() => utxo.Dimensions.sum({ nP2shInputs: 1 }, { nP2shInputs: 'foo' }));
+    should.throws(() => utxo.Dimensions.sum({ outputs: { count: 1, size: 0 } }));
+    should.throws(() => utxo.Dimensions.sum({ outputs: { count: 0, size: 1 } }));
+    should.throws(() => utxo.Dimensions.sum({ outputs: { count: 1, size: 1 } }, { outputs: { count: 1, size: 0 } }));
+  });
+
 
   it('multiplies correctly', function () {
     utxo.Dimensions({
       nP2shInputs: 1,
       nP2shP2wshInputs: 2,
       nP2wshInputs: 3,
-      nOutputs: 4
-    }).times(2).should.eql(
+      outputs: { count: 1, size: 22 }
+    }).times(3).should.eql(
       utxo.Dimensions({
-        nP2shInputs: 2,
-        nP2shP2wshInputs: 4,
-        nP2wshInputs: 6,
-        nOutputs: 8
+        nP2shInputs: 3,
+        nP2shP2wshInputs: 6,
+        nP2wshInputs: 9,
+        outputs: { count: 3, size: 66 }
       })
     );
   });
@@ -74,7 +111,28 @@ describe('Dimensions from unspent types', function () {
       { chain: utxo.chain.codes.p2shP2wsh.external },
       { chain: utxo.chain.codes.p2wsh.internal },
       { chain: utxo.chain.codes.p2wsh.external }
-    ]).should.eql(utxo.Dimensions({ nP2shP2wshInputs: 2, nP2shInputs: 2, nP2wshInputs: 2, nOutputs: 0 }));
+    ]).should.eql(utxo.Dimensions({
+      nP2shP2wshInputs: 2,
+      nP2shInputs: 2,
+      nP2wshInputs: 2,
+      outputs: { count: 0, size: 0 }
+    }));
+  });
+
+
+  it('calculates output dimensions dynamically', function () {
+    const expectedSizes = new Map([
+      [UnspentTypeScript2of3.p2sh, utxo.VirtualSizes.txP2shOutputSize],
+      [UnspentTypeScript2of3.p2shP2wsh, utxo.VirtualSizes.txP2shP2wshOutputSize],
+      [UnspentTypeScript2of3.p2wsh, utxo.VirtualSizes.txP2wshOutputSize],
+      [UnspentTypePubKeyHash.p2pkh, utxo.VirtualSizes.txP2pkhOutputSize],
+      [UnspentTypePubKeyHash.p2wpkh, utxo.VirtualSizes.txP2wpkhOutputSize]
+    ]);
+
+    [...Object.keys(UnspentTypeScript2of3), ...Object.keys(UnspentTypePubKeyHash)].forEach(type =>
+      getOutputDimensionsForUnspentType(type)
+      .outputs.size.should.eql(expectedSizes.get(type))
+    );
   });
 });
 
@@ -84,13 +142,16 @@ describe('Dimensions estimates', function () {
     const dim = (
       nP2shInputs,
       nP2shP2wshInputs,
-      nP2wshInputs, nOutputs
-    ) => new utxo.Dimensions({
-      nP2shInputs,
-      nP2shP2wshInputs,
       nP2wshInputs,
-      nOutputs,
-    });
+      nOutputs
+    ) => utxo.Dimensions.sum(
+      {
+        nP2shInputs,
+        nP2shP2wshInputs,
+        nP2wshInputs,
+      },
+      getOutputDimensionsForUnspentType(UnspentTypePubKeyHash.p2pkh).times(nOutputs)
+    );
 
     [
       [dim(1, 0, 0, 1), [false, 10, 296, 34, 340]],

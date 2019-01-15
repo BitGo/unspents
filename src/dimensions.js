@@ -7,7 +7,12 @@ const { PositiveInteger } = require('./types');
 
 // Constants for signed TX input and output vsizes.
 // See https://bitcoincore.org/en/segwit_wallet_dev/#transaction-serialization for full description
+// FIXME(BG-9233): use weight units instead
 const VirtualSizes = Object.freeze({
+  //
+  // Input sizes
+  //
+
   // Size of a P2PKH input with (un)compressed key
   // Source: https://bitcoin.stackexchange.com/questions/48279/how-big-is-the-input-of-a-p2pkh-transaction
   txP2pkhInputSizeCompressedKey: 148,
@@ -21,14 +26,82 @@ const VirtualSizes = Object.freeze({
   // https://bitgoinc.atlassian.net/browse/BG-5103#comment-33544
   // FIXME(BG-7873): add support for signature grinding
   txP2wshInputSize: 105,
-  // Standard output size
-  // FIXME(BG-5139): add support for dynamic output sizes
+
+  //
+  // Output sizes
+  //
+
+  // The size is calculated as
+  //
+  //    scriptLength + compactSize(scriptLength) + txOutputAmountSize
+  //
+  // Since compactSize(scriptLength) is 1 for all scripts considered here, we can simplify this to
+  //
+  //    scriptLength + 9
+  //
+
+  // Size of single output amount
+  txOutputAmountSize: 8,
+
+  // https://github.com/bitcoinjs/bitcoinjs-lib/blob/v4.0.2/src/templates/scripthash/output.js#L9
+  txP2shOutputSize: 32,
+  txP2shP2wshOutputSize: 32,
+  // https://github.com/bitcoinjs/bitcoinjs-lib/blob/v4.0.2/src/templates/witnessscripthash/output.js#L9
+  txP2wshOutputSize: 43,
+  // https://github.com/bitcoinjs/bitcoinjs-lib/blob/v4.0.2/src/templates/pubkeyhash/output.js#L9
+  txP2pkhOutputSize: 34,
+  // https://github.com/bitcoinjs/bitcoinjs-lib/blob/v4.0.2/src/templates/witnesspubkeyhash/output.js#L9
+  txP2wpkhOutputSize: 31,
+
+  /** @deprecated - use txP2pkhOutputSize instead */
   txOutputSize: 34,
+
+  //
+  // General tx size constants
+  //
+
   txOverheadSize: 10,
   // Segwit adds one byte each for marker and flag to the witness section.
   // Thus, the vsize is only increased by one.
   txSegOverheadVSize: 11
 });
+
+
+/**
+ * https://bitcoin.org/en/developer-reference#compactsize-unsigned-integers
+ * @param integer
+ * @return {number} - The compact size the integer requires when serialized in a transaction
+ */
+const compactSize = (integer) => {
+  if (!PositiveInteger.is(integer)) {
+    throw new TypeError(`expected positive integer`);
+  }
+  if (integer <= 252) {
+    return 1;
+  }
+  if (integer <= 0xffff) {
+    return 3;
+  }
+  if (integer <= 0xffffffff) {
+    return 5;
+  }
+  return 9;
+};
+
+
+/**
+ * A collection of outputs is represented as their count and aggregate vsize
+ */
+const StructOutputs = t.refinement(
+  t.struct({
+    count: PositiveInteger, // number of outputs
+    size: PositiveInteger, // aggregate vsize
+  }),
+  /* predicate: count is zero iff size is zero */
+  ({ count, size }) => (count === 0) === (size === 0),
+  /* name */
+  'Outputs'
+);
 
 
 /**
@@ -44,7 +117,52 @@ const Dimensions = t.struct({
   nP2shInputs: PositiveInteger,
   nP2shP2wshInputs: PositiveInteger,
   nP2wshInputs: PositiveInteger,
-  nOutputs: PositiveInteger
+  outputs: StructOutputs,
+}, { name: 'Dimensions' });
+
+
+const zero = Object.freeze(Dimensions({
+  nP2shInputs: 0,
+  nP2shP2wshInputs: 0,
+  nP2wshInputs: 0,
+  outputs: { count: 0, size: 0 }
+}));
+
+
+/**
+ * Dimensions object where all properties are 0
+ * @return {any}
+ */
+Dimensions.zero = function () {
+  return zero;
+};
+
+
+Object.defineProperty(Dimensions.prototype, 'nInputs', {
+  /**
+   * @return Number of total inputs (p2sh + p2shP2wsh + p2wsh)
+   */
+  get() {
+    return this.nP2shInputs + this.nP2shP2wshInputs + this.nP2wshInputs;
+  },
+
+  set(_) {
+    throw new Error('read-only property nInputs');
+  }
+});
+
+
+Object.defineProperty(Dimensions.prototype, 'nOutputs', {
+  /**
+   * @return Number of total outputs
+   */
+  get() {
+    return this.outputs.count;
+  },
+
+  set(_) {
+    throw new Error('read-only property nOutputs');
+  }
 });
 
 
@@ -56,7 +174,7 @@ const Dimensions = t.struct({
  */
 const mapDimensions = (dim, func) => {
   return Dimensions(_.fromPairs(_.map(Dimensions.meta.props, (prop, key) =>
-    [key, func(dim[key], key)]
+    [key, func(dim[key], key, prop)]
   )));
 };
 
@@ -67,20 +185,35 @@ Dimensions.ASSUME_P2WSH = Symbol('assume-p2wsh');
 
 
 /**
- * Dimensions object where all properties are 0
- * @return {any}
+ * @param args - Dimensions (can be partially defined)
+ * @return {Dimensions} sum of arguments
  */
-Dimensions.zero = function () {
-  return new Dimensions({ nP2shInputs: 0, nP2shP2wshInputs: 0, nP2wshInputs: 0, nOutputs: 0 });
+Dimensions.sum = function (...args) {
+  return args.reduce((a, b) => Dimensions(a).plus(b), zero);
 };
 
 
 /**
- * @param args - Dimensions (can be partially defined)
- * @return sum of arguments
+ * @param chain
+ * @return {Number}
  */
-Dimensions.sum = function (...args) {
-  return args.reduce((a, b) => Dimensions(a).plus(b), Dimensions.zero());
+Dimensions.getOutputScriptLengthForChain = function (chain) {
+  if (!utxoChain.isValid(chain)) {
+    throw new TypeError('invalid chain code');
+  }
+  return utxoChain.isP2wsh(chain) ? 34 : 23;
+};
+
+
+/**
+ * @param scriptLength
+ * @return {Number} vSize of an output with script length
+ */
+Dimensions.getVSizeForOutputWithScriptLength = function (scriptLength) {
+  if (!PositiveInteger.is(scriptLength)) {
+    throw new TypeError(`expected positive integer for scriptLength, got ${scriptLength}`);
+  }
+  return scriptLength + compactSize(scriptLength) + VirtualSizes.txOutputAmountSize;
 };
 
 
@@ -113,6 +246,72 @@ Dimensions.fromInput = function ({ index, script, witness }, { assumeUnsigned } 
   }
 
   return witness.length ? p2shP2wshInput : p2shInput;
+};
+
+
+/**
+ * @param inputs - Array of inputs
+ * @param params - @see Dimensions.fromInput()
+ * @return {Dimensions} sum of the dimensions for each input (@see Dimensions.fromInput())
+ */
+Dimensions.fromInputs = function (inputs, params) {
+  if (!Array.isArray(inputs)) {
+    throw new TypeError(`inputs must be array`);
+  }
+  return Dimensions.sum(...inputs.map(i => Dimensions.fromInput(i, params)));
+};
+
+
+/**
+ * @param scriptLength {PositiveInteger} - size of the output script in bytes
+ * @return {Dimensions} - Dimensions of the output
+ */
+Dimensions.fromOutputScriptLength = function (scriptLength) {
+  return Dimensions.sum({
+    outputs: {
+      count: 1,
+      size: Dimensions.getVSizeForOutputWithScriptLength(scriptLength)
+    }
+  });
+};
+
+
+/**
+ * @param output - a tx output
+ * @return Dimensions - the dimensions of the given output
+ */
+Dimensions.fromOutput = function ({ script }) {
+  if (!script) {
+    throw new Error('expected output script to be defined');
+  }
+  if (!Buffer.isBuffer(script)) {
+    throw new TypeError('expected script to be buffer, got ' + typeof script);
+  }
+  return Dimensions.fromOutputScriptLength(script.length);
+};
+
+
+/**
+ * @param outputs - Array of outputs
+ * @return {Dimensions} sum of the dimensions for each output (@see Dimensions.fromOutput())
+ */
+Dimensions.fromOutputs = function (outputs) {
+  if (!Array.isArray(outputs)) {
+    throw new TypeError(`outputs must be array`);
+  }
+  return Dimensions.sum(...outputs.map(Dimensions.fromOutput));
+};
+
+
+/**
+ * Returns the dimensions of an output that will be created on a specific chain.
+ * Currently, this simply adds a default output.
+ *
+ * @param chain - Chain code as defined by utxo.chain
+ * @return {Dimensions} - Dimensions for a single output on the given chain.
+ */
+Dimensions.fromOutputOnChain = function (chain) {
+  return Dimensions.fromOutputScriptLength(Dimensions.getOutputScriptLengthForChain(chain));
 };
 
 
@@ -161,27 +360,8 @@ Dimensions.fromUnspents = function (unspents) {
  * @param [param.assumeUnsigned] - default type for unsigned inputs
  * @return {Dimensions}
  */
-Dimensions.fromTransaction = function ({ ins, outs }, { assumeUnsigned } = {}) {
-  return Dimensions.sum(
-    ...ins.map((input) => Dimensions.fromInput(input, { assumeUnsigned })),
-    { nOutputs: outs.length }
-  );
-};
-
-
-/**
- * Returns the dimensions of an output that will be created on a specific chain.
- * Currently, this simply adds a default output.
- *
- * @param chain - Chain code as defined by utxo.chain
- * @return {Dimensions} - Dimensions for a single output on the given chain.
- */
-Dimensions.fromOutputOnChain = function (chain) {
-  // FIXME(BG-8391): estimate actual size here
-  if (!utxoChain.isValid(chain)) {
-    throw new TypeError('invalid chain code');
-  }
-  return Dimensions.sum({ nOutputs: 1 });
+Dimensions.fromTransaction = function ({ unspents, ins, outs }, { assumeUnsigned } = {}) {
+  return Dimensions.fromInputs(ins, { assumeUnsigned }).plus(Dimensions.fromOutputs(outs));
 };
 
 
@@ -190,7 +370,31 @@ Dimensions.fromOutputOnChain = function (chain) {
  * @return new dimensions with argument added
  */
 Dimensions.prototype.plus = function (dimensions) {
-  return mapDimensions(this, (v = 0, prop) => v + (dimensions[prop] || 0));
+  if (!_.isObject(dimensions)) {
+    throw new TypeError(`expected argument to be object`);
+  }
+
+  // Catch instances where we try to initialize Dimensions from partial data using deprecated parameters
+  // using only "nOutputs".
+  if ('nOutputs' in dimensions) {
+    if (!('outputs' in dimensions)) {
+      throw new Error('deprecated partial addition: argument has key "nOutputs" but no "outputs"');
+    }
+    if (dimensions.outputs.count !== dimensions.nOutputs) {
+      throw new Error('deprecated partial addition: inconsistent values for "nOutputs" and "outputs.count"');
+    }
+  }
+
+  return mapDimensions(this, (v, key, prop) => {
+    const w = dimensions.hasOwnProperty(key) ? prop(dimensions[key]) : zero[key];
+    if (key === 'outputs') {
+      return {
+        count: v.count + w.count,
+        size: v.size + w.size
+      };
+    }
+    return v + w;
+  });
 };
 
 
@@ -204,12 +408,21 @@ Dimensions.prototype.times = function (factor) {
     throw new TypeError(`expected factor to be positive integer`);
   }
 
-  return mapDimensions(this, (v) => v * factor);
+  return mapDimensions(this, (v, key) => {
+    if (key === 'outputs') {
+      return {
+        count: v.count * factor,
+        size: v.size * factor
+      };
+    }
+    return v * factor;
+  });
 };
 
 
 /**
  * @return Number of total inputs (p2sh, p2shP2wsh and p2wsh)
+ * @deprecated use `dimension.nInputs` instead
  */
 Dimensions.prototype.getNInputs = function () {
   return this.nP2shInputs + this.nP2shP2wshInputs + this.nP2wshInputs;
@@ -260,7 +473,7 @@ Dimensions.prototype.getInputsVSize = function () {
  * @returns {number} return vsize of outputs, without overhead
  */
 Dimensions.prototype.getOutputsVSize = function () {
-  return this.nOutputs * VirtualSizes.txOutputSize;
+  return this.outputs.size;
 };
 
 
@@ -270,7 +483,6 @@ Dimensions.prototype.getOutputsVSize = function () {
  * @returns {Number} The estimated vsize of the transaction dimensions.
  */
 Dimensions.prototype.getVSize = function () {
-  // FIXME(BG-9233): use weight units instead
   return this.getOverheadVSize() + this.getInputsVSize() + this.getOutputsVSize();
 };
 
