@@ -254,3 +254,123 @@ describe(`Dimensions for transaction combinations`, function () {
     );
   });
 });
+
+
+describe(`Dimension estimation errors`, function () {
+  const inputTypes = Object.keys(UnspentTypeScript2of3);
+  const outputTypes = [...inputTypes, ...Object.keys(UnspentTypePubKeyHash)];
+
+  /* eslint-disable no-multi-spaces, array-bracket-spacing */
+  const expectedInputErrors = new Map([
+    [UnspentTypeScript2of3.p2sh,      [-1, 3]],
+    [UnspentTypeScript2of3.p2shP2wsh, [ 0, 0]],
+    [UnspentTypeScript2of3.p2wsh,     [ 1, 1]],
+  ]);
+
+  const expectedOutputErrors = new Map([
+    [UnspentTypeScript2of3.p2sh,       2],
+    [UnspentTypeScript2of3.p2shP2wsh,  2],
+    [UnspentTypeScript2of3.p2wsh,     -9],
+    [UnspentTypePubKeyHash.p2pkh,      0],
+    [UnspentTypePubKeyHash.p2wpkh,     3],
+  ]);
+  /* eslint-enable no-multi-spaces, array-bracket-spacing */
+
+  class ErrorTracker {
+    constructor() {
+      this.map = new Map();
+      this.total = 0;
+    }
+
+    add(size) {
+      this.map.set(size, (this.map.get(size) || 0) + 1);
+      this.total++;
+    }
+
+    getPercentile(p) {
+      if (0 > p || p > 1) {
+        throw new Error(`p must be between 0 and 1`);
+      }
+
+      const sortedKeys = [...this.map.keys()].sort((a, b) => a - b);
+      let sum = 0;
+      for (const k of sortedKeys) {
+        sum += this.map.get(k);
+        if ((sum / this.total) >= p) {
+          return k;
+        }
+      }
+
+      throw new Error('could not find percentile');
+    }
+
+    toString() {
+      const keys = [...this.map.keys()].sort((a, b) => a - b);
+      return `[${keys.map((k) => `[${k}, ${this.map.get(k)}]`).join(' ')}]`;
+    }
+  }
+
+  const getKeyTriplets = (prefix, count) => [...Array(count)].map(
+    (_, i) => [1, 2, 3].map((j) => HDKey.fromMasterSeed(Buffer.from(`${prefix}/${i}/${j}`)))
+  );
+
+  const inputKeyTriplets = getKeyTriplets('test/input/', 8);
+  const outputKeyTriplets = getKeyTriplets('test/output/', 16);
+  const outputValue = 1e8;
+
+  inputTypes.forEach((inputType) => {
+    const inputTxs = inputKeyTriplets
+      .map((inputKeys) => {
+        const unspent = createOutputScript2of3(inputKeys, inputType);
+        const inputTx = createInputTx([unspent], outputValue);
+        return { inputKeys, unspent, inputTx };
+      });
+
+    outputTypes.forEach((outputType) => {
+      const outputs = outputKeyTriplets.map((outputKeys) => createAddress(outputKeys, outputType));
+
+      it(`should have correct vsize error bounds for input=${inputType} and output=${outputType}`, function () {
+        this.timeout(20000);
+        const inputVSizeErrors = new ErrorTracker();
+        inputTxs.forEach(({ inputKeys, unspent, inputTx }) => {
+          const txBuilder = new bitcoin.TransactionBuilder(undefined, Infinity);
+          inputTx.outs.forEach((_, i) => txBuilder.addInput(inputTx, i));
+
+          outputs.forEach((address) => {
+            txBuilder.tx.outs = [];
+            txBuilder.inputs.forEach((i) => { delete i.signatures; });
+            txBuilder.addOutput(address, outputValue);
+            const { redeemScript, witnessScript } = unspent;
+            inputKeys.slice(0, 2).forEach(key => txBuilder.sign(
+              0,
+              key,
+              redeemScript,
+              undefined, /* hashType */
+              outputValue,
+              witnessScript
+            ));
+            const tx = txBuilder.build();
+            const dims = utxo.Dimensions.fromTransaction(tx);
+
+            const totalVSize = tx.virtualSize();
+            const outputsVSize = totalVSize - Object.assign(tx.clone(), { outs: [] }).virtualSize();
+            const outputVSizeError = (dims.getOutputsVSize() - outputsVSize);
+            outputVSizeError.should.eql(expectedOutputErrors.get(outputType));
+
+            const overheadPlusInputsVSize = totalVSize - outputsVSize;
+            const inputVSizeError = (dims.getOverheadVSize() + dims.getInputsVSize()) - overheadPlusInputsVSize;
+            inputVSizeErrors.add(inputVSizeError);
+          });
+        });
+
+        // console.log(`inputType=${inputType} outputType=${outputType}\n`);
+        // console.log(`inputVSizeErrors`, inputVSizeErrors);
+
+        [
+          inputVSizeErrors.getPercentile(0.01),
+          inputVSizeErrors.getPercentile(0.99)
+        ].should.eql(expectedInputErrors.get(inputType));
+      });
+    });
+  });
+});
