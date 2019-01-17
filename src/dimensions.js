@@ -5,26 +5,107 @@ const utxoChain = require('./chain');
 const { PositiveInteger } = require('./types');
 
 
+/*
+This is a reference implementation for calculating weights and vSizes from bitcoinjs-lib 3.3.2.
+https://github.com/bitcoinjs/bitcoinjs-lib/blob/v3.3.2/src/transaction.js#L194-L219
+
+```
+  function encodingLength (number) {
+    checkUInt53(number)
+
+    return (
+      number < 0xfd ? 1
+    : number <= 0xffff ? 3
+    : number <= 0xffffffff ? 5
+    : 9
+    )
+  }
+
+  function varSliceSize (someScript) {
+    var length = someScript.length
+
+    return encodingLength(length) + length
+  }
+
+  function vectorSize (someVector) {
+    var length = someVector.length
+
+    return varuint.encodingLength(length) + someVector.reduce(function (sum, witness) {
+      return sum + varSliceSize(witness)
+    }, 0)
+  }
+
+  Transaction.prototype.__byteLength = function (__allowWitness) {
+    var hasWitnesses = __allowWitness && this.hasWitnesses()
+
+    return (
+      (hasWitnesses ? 10 : 8) +
+      varuint.encodingLength(this.ins.length) +
+      varuint.encodingLength(this.outs.length) +
+      this.ins.reduce(function (sum, input) { return sum + 40 + varSliceSize(input.script) }, 0) +
+      this.outs.reduce(function (sum, output) { return sum + 8 + varSliceSize(output.script) }, 0) +
+      (hasWitnesses ? this.ins.reduce(function (sum, input) { return sum + vectorSize(input.witness) }, 0) : 0)
+    )
+  }
+
+  Transaction.prototype.weight = function () {
+    var base = this.__byteLength(false)
+    var total = this.__byteLength(true)
+    return base * 3 + total
+  }
+
+  Transaction.prototype.virtualSize = function () {
+    return Math.ceil(this.weight() / 4)
+  }
+```
+*/
+
+
 // Constants for signed TX input and output vsizes.
 // See https://bitcoincore.org/en/segwit_wallet_dev/#transaction-serialization for full description
 // FIXME(BG-9233): use weight units instead
 const VirtualSizes = Object.freeze({
+  // FIXME(BG-7873): add support for signature grinding
+
   //
   // Input sizes
   //
-
+  //
   // Size of a P2PKH input with (un)compressed key
   // Source: https://bitcoin.stackexchange.com/questions/48279/how-big-is-the-input-of-a-p2pkh-transaction
   txP2pkhInputSizeCompressedKey: 148,
   txP2pkhInputSizeUncompressedKey: 180,
-  // Size of a signed P2SH multisig input.
-  txP2shInputSize: 296,
-  // A signed P2SH-P2WSH (wrapped P2WSH) input has approximately 552 bytes weight,
-  // but we're making a conservative estimate with 139 bytes vsize.
-  // Source: https://bitcoin.stackexchange.com/q/57479/5406
-  txP2shP2wshInputSize: 139,
-  // https://bitgoinc.atlassian.net/browse/BG-5103#comment-33544
-  // FIXME(BG-7873): add support for signature grinding
+
+  // The distribution of input weights for a 2-of-3 p2shP2wsh input with two signatures is as follows
+  //   ┌───────┬─┬───────┬─┬───────┐
+  //   │ 1172  │…│ 1184  │…│ 1188  │
+  //   ├───────┼─┼───────┼─┼───────┤
+  //   │ 0.270 │…│ 0.496 │…│ 0.234 │
+  //   └───────┴─┴───────┴─┴───────┘
+  // Which corresponds to vSizes [293, 296, 297].
+  // The 3-byte gap is due to the fact that a single-byte increase of the total scriptSig length from 252 to 253
+  // requires another 2-byte increase of the encoded scriptSig length.
+  // For N inputs, the overestimation will be below 2 * N vbytes for 80% of transactions.
+  txP2shInputSize: 297,
+
+  // The distribution of input weights for a 2-of-3 p2shP2wsh input with two signatures is as follows
+  //   ┌───────┬───────┬───────┐
+  //   │ 556   │ 557   │ 558   │
+  //   ├───────┼───────┼───────┤
+  //   │ 0.281 │ 0.441 │ 0.277 │
+  //   └───────┴───────┴───────┘
+  // Which corresponds to a vSize  of 139.5 on the upper side. We will round up to 140.
+  // For N inputs, the overestimation will be below N vbytes for all transactions.
+  txP2shP2wshInputSize: 140,
+
+  // The distribution of input weights for a 2-of-3 p2wsh input with two signatures is as follows
+  //   ┌───────┬───────┬───────┬───────┐
+  //   │ 415   │ 416   │ 417   │ 418   │
+  //   ├───────┼───────┼───────┼───────┤
+  //   │ 0.002 │ 0.246 │ 0.503 │ 0.249 │
+  //   └───────┴───────┴───────┴───────┘
+  // This corresponds to a vSize of 104.5 on the upper end, which we round up to 105.
+  // For N inputs, the overestimation will be below N vbytes for all transactions.
   txP2wshInputSize: 105,
 
   //
@@ -69,6 +150,7 @@ const VirtualSizes = Object.freeze({
 
 /**
  * https://bitcoin.org/en/developer-reference#compactsize-unsigned-integers
+ * https://github.com/bitcoinjs/varuint-bitcoin/blob/1d5b253/index.js#L79
  * @param integer
  * @return {number} - The compact size the integer requires when serialized in a transaction
  */
