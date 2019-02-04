@@ -76,7 +76,7 @@ const VirtualSizes = Object.freeze({
   txP2pkhInputSizeCompressedKey: 148,
   txP2pkhInputSizeUncompressedKey: 180,
 
-  // The distribution of input weights for a 2-of-3 p2shP2wsh input with two signatures is as follows
+  // The distribution of input weights for a 2-of-3 p2sh input with two signatures is as follows
   //   ┌───────┬─┬───────┬─┬───────┐
   //   │ 1172  │…│ 1184  │…│ 1188  │
   //   ├───────┼─┼───────┼─┼───────┤
