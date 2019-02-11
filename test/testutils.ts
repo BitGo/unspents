@@ -1,5 +1,4 @@
-const utxo = require('../src');
-
+import * as utxo from '../src';
 
 /**
  * makeEnum('a', 'b') returns `{ a: 'a', b: 'b' }`
@@ -7,29 +6,36 @@ const utxo = require('../src');
  * @param args
  * @return map with string keys and symbol values
  */
-const makeEnum = (...args) =>
+const makeEnum = (...args: string[]): any =>
   args.reduce((obj, key) => Object.assign(obj, { [key]: key }), {});
 
+const UnspentTypeScript2of3: {
+  p2sh: string;
+  p2shP2wsh: string;
+  p2wsh: string;
+} = makeEnum('p2sh', 'p2shP2wsh', 'p2wsh');
 
-const UnspentTypeScript2of3 = makeEnum('p2sh', 'p2shP2wsh', 'p2wsh');
-const UnspentTypePubKeyHash = makeEnum('p2pkh', 'p2wpkh');
+const UnspentTypePubKeyHash: {
+  p2pkh: string;
+  p2wpkh: string;
+} = makeEnum('p2pkh', 'p2wpkh');
+
+export type TestUnspentType = string | UnspentTypeOpReturn;
 
 class UnspentTypeOpReturn {
-  constructor(size) {
-    this.size = size;
-  }
-  toString() {
+  constructor(public size: number) { }
+
+  public toString() {
     return `opReturn(${this.size})`;
   }
 }
-
 
 /**
  * Return the input dimensions based on unspent type
  * @param unspentType - one of UnspentTypeScript2of3
  * @return Dimensions
  */
-const getInputDimensionsForUnspentType = (unspentType) => {
+const getInputDimensionsForUnspentType = (unspentType: TestUnspentType) => {
   switch (unspentType) {
     case UnspentTypeScript2of3.p2sh:
       return utxo.Dimensions.sum({ nP2shInputs: 1 });
@@ -41,8 +47,7 @@ const getInputDimensionsForUnspentType = (unspentType) => {
   throw new Error(`no input dimensions for ${unspentType}`);
 };
 
-
-const getOutputDimensionsForUnspentType = (unspentType) => {
+const getOutputDimensionsForUnspentType = (unspentType: TestUnspentType) => {
   /* The values here are validated in the test 'calculates output dimensions dynamically' */
   switch (unspentType) {
     case UnspentTypeScript2of3.p2sh:
@@ -62,8 +67,7 @@ const getOutputDimensionsForUnspentType = (unspentType) => {
   }
 };
 
-
-module.exports = {
+export {
   UnspentTypeScript2of3,
   UnspentTypePubKeyHash,
   UnspentTypeOpReturn,

@@ -1,41 +1,41 @@
-require('lodash.combinations');
+import 'should';
 
-require('should');
+import * as utxo from '../../src';
 
-const utxo = require('../../src');
-
-const {
-  UnspentTypeScript2of3,
-  UnspentTypePubKeyHash,
+import {
+  TestUnspentType,
   UnspentTypeOpReturn,
-} = require('../testutils');
+  UnspentTypePubKeyHash,
+  UnspentTypeScript2of3,
+} from '../testutils';
 
-const {
+import {
   Histogram,
   runSignedTransactions,
-} = require('./txGen');
+} from './txGen';
 
+describe(`Dimension estimation errors`, function() {
+  interface IInputTypeAndCount { inputType: TestUnspentType; count: number; }
 
-describe(`Dimension estimation errors`, function () {
-  const inputTypes = Object.keys(UnspentTypeScript2of3)
-    .reduce((all, inputType) => [
+  const inputTypes: IInputTypeAndCount[] = Object.keys(UnspentTypeScript2of3)
+    .reduce((all: IInputTypeAndCount[], inputType) => [
       ...all,
       { inputType, count: 1 },
       { inputType, count: 2 },
-      { inputType, count: 4 }
+      { inputType, count: 4 },
     ], []);
 
   const outputTypes = [
     ...Object.keys(UnspentTypeScript2of3),
     ...Object.keys(UnspentTypePubKeyHash),
     new UnspentTypeOpReturn(16),
-    new UnspentTypeOpReturn(32)
+    new UnspentTypeOpReturn(32),
   ];
 
   // set to `true` if we want the test to fail if the error is *smaller* than expected
   const strictErrorBounds = false;
 
-  const getExpectedInputErrors = (inputType, inputCount, outputType) => {
+  const getExpectedInputErrors = (inputType: any, inputCount: any, outputType: any) => {
     switch (inputType) {
       case UnspentTypeScript2of3.p2sh:
         return [0, 5 * inputCount];
@@ -55,12 +55,17 @@ describe(`Dimension estimation errors`, function () {
     nOutputKeyTriplets: 128,
   };
 
-  runSignedTransactions(params, (inputType, inputCount, outputType, signedTxs) => {
+  runSignedTransactions(params, (
+    inputType: TestUnspentType,
+    inputCount: number,
+    outputType: TestUnspentType,
+    signedTxs: any[]
+  ) => {
     const title =
       `should have correct vsize error bounds ${getExpectedInputErrors(inputType, inputCount, outputType)}` +
       ` for input=${inputType}-${inputCount} and output=${outputType}`;
 
-    it(title, function () {
+    it(title, function() {
       this.timeout(5000);
       const inputVSizeErrors = new Histogram();
       signedTxs.forEach((tx) => {
@@ -85,7 +90,7 @@ describe(`Dimension estimation errors`, function () {
       if (strictErrorBounds) {
         [
           inputVSizeErrors.getPercentile(0.01),
-          inputVSizeErrors.getPercentile(0.99)
+          inputVSizeErrors.getPercentile(0.99),
         ].should.eql([low, high]);
       }
     });

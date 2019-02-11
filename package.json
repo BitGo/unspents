@@ -1,13 +1,14 @@
 {
   "name": "bitgo-utxo-dimensions",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Defines the chain codes used for different unspent types and methods to calculate bitcoin transaction sizes",
   "main": "src/index.js",
   "directories": {
     "test": "test"
   },
   "scripts": {
-    "test": "mocha --recursive test/"
+    "postinstall": "./node_modules/.bin/tsc --project tsconfig.build.json",
+    "test": "mocha --require ts-node/register \"test/**/*.ts\""
   },
   "repository": {
     "type": "git",
@@ -24,16 +25,23 @@
   },
   "homepage": "https://github.com/BitGo/bitgo-utxo-dimensions#readme",
   "devDependencies": {
+    "@types/mocha": "^5.2.5",
     "bitgo-utxo-lib": "^1.1.2",
     "eslint": "^5.12.0",
     "hdkey": "^1.1.0",
     "lodash.combinations": "^18.9.19",
     "mocha": "^5.2.0",
     "mocha-junit-reporter": "^1.18.0",
-    "should": "^13.2.3"
+    "should": "^13.2.3",
+    "ts-node": "^8.0.2",
+    "tslint": "^5.12.1",
+    "tslint-eslint-rules": "^5.4.0"
   },
   "dependencies": {
+    "@types/lodash": "^4.14.120",
+    "@types/node": "^10.12.18",
     "lodash": "^4.17.11",
-    "tcomb": "^3.2.27"
+    "tcomb": "^3.2.27",
+    "typescript": "^3.2.4"
   }
 }

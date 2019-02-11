@@ -1,22 +1,23 @@
-const should = require('should');
+import should from 'should';
 
-const HDKey = require('hdkey');
+// @ts-ignore
+import * as HDKey from 'hdkey';
 
-const utxo = require('../../src');
+import * as utxo from '../../src';
 
-const {
-  UnspentTypeScript2of3,
-  UnspentTypePubKeyHash,
+import {
   getInputDimensionsForUnspentType,
   getOutputDimensionsForUnspentType,
-} = require('../testutils');
+  UnspentTypePubKeyHash,
+  UnspentTypeScript2of3,
+} from '../testutils';
 
-const {
-  TxCombo,
+import {
   runCombinations,
-} = require('./txGen');
+  TxCombo,
+} from './txGen';
 
-const testDimensionsFromTx = (txCombo) => {
+const testDimensionsFromTx = (txCombo: any) => {
   const { inputTypes, outputTypes, expectedDims } = txCombo;
 
   describe(`Combination inputs=${inputTypes}; outputs=${outputTypes}`, function () {
@@ -49,7 +50,7 @@ const testDimensionsFromTx = (txCombo) => {
       const signedTx = txCombo.getSignedTx();
 
       // test Dimensions.fromInput()
-      inputTypes.forEach((input, i) =>
+      inputTypes.forEach((input: any, i: number) =>
         utxo.Dimensions.fromInput(signedTx.ins[i])
           .should.eql(utxo.Dimensions.sum(getInputDimensionsForUnspentType(input)))
       );
@@ -66,7 +67,7 @@ describe(`Dimensions for transaction combinations`, function () {
     maxNOutputs: 3,
   };
 
-  runCombinations(params, (inputTypeCombo, outputTypeCombo) => {
+  runCombinations(params, (inputTypeCombo: any, outputTypeCombo: any) => {
     const expectedInputDims = utxo.Dimensions.sum(...inputTypeCombo.map(getInputDimensionsForUnspentType));
     const expectedOutputDims = utxo.Dimensions.sum(...outputTypeCombo.map(getOutputDimensionsForUnspentType));
 
