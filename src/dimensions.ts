@@ -85,7 +85,7 @@ export const VirtualSizes: {[key: string]: number} = Object.freeze({
   // The 3-byte gap is due to the fact that a single-byte increase of the total scriptSig length from 252 to 253
   // requires another 2-byte increase of the encoded scriptSig length.
   // For N inputs, the overestimation will be below 2 * N vbytes for 80% of transactions.
-  txP2shInputSize: 297,
+  txP2shInputSize: 296,
 
   // The distribution of input weights for a 2-of-3 p2shP2wsh input with two signatures is as follows
   //   ┌───────┬───────┬───────┐
@@ -95,7 +95,7 @@ export const VirtualSizes: {[key: string]: number} = Object.freeze({
   //   └───────┴───────┴───────┘
   // Which corresponds to a vSize  of 139.5 on the upper side. We will round up to 140.
   // For N inputs, the overestimation will be below N vbytes for all transactions.
-  txP2shP2wshInputSize: 140,
+  txP2shP2wshInputSize: 139,
 
   // The distribution of input weights for a 2-of-3 p2wsh input with two signatures is as follows
   //   ┌───────┬───────┬───────┬───────┐
