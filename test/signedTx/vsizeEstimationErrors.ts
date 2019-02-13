@@ -38,9 +38,9 @@ describe(`Dimension estimation errors`, function() {
   const getExpectedInputErrors = (inputType: any, inputCount: any, outputType: any) => {
     switch (inputType) {
       case UnspentTypeScript2of3.p2sh:
-        return [0, 5 * inputCount];
+        return [-1 * inputCount, 3 * inputCount];
       case UnspentTypeScript2of3.p2shP2wsh:
-        return [0, inputCount];
+        return [-1 * inputCount, 0];
       case UnspentTypeScript2of3.p2wsh:
         return [0, inputCount];
       default:
