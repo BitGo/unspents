@@ -1,5 +1,5 @@
-import 'lodash.combinations';
 import _ from 'lodash';
+import 'lodash.combinations';
 
 // @ts-ignore
 import * as bitcoin from 'bitgo-utxo-lib';
@@ -7,13 +7,13 @@ import * as bitcoin from 'bitgo-utxo-lib';
 // @ts-ignore
 import * as HDKey from 'hdkey';
 
+import { IDimensions } from '../../src/dimensions';
 import {
   TestUnspentType,
   UnspentTypeOpReturn,
   UnspentTypePubKeyHash,
   UnspentTypeScript2of3,
 } from '../testutils';
-import {IDimensions} from "../../src/dimensions";
 
 /**
  * Return a 2-of-3 multisig output
@@ -27,7 +27,8 @@ const createOutputScript2of3 = (keys: any[], unspentType: TestUnspentType) => {
   const p2wshOutputScript = bitcoin.script.witnessScriptHash.output.encode(
     bitcoin.crypto.sha256(script2of3),
   );
-  let redeemScript, witnessScript;
+  let redeemScript;
+  let witnessScript;
   switch (unspentType) {
     case UnspentTypeScript2of3.p2sh:
       redeemScript = script2of3;
@@ -99,7 +100,7 @@ class TxCombo {
     public inputTypes: TestUnspentType[],
     public outputTypes: TestUnspentType[],
     public expectedDims: IDimensions,
-    public inputValue: number = 10
+    public inputValue: number = 10,
   ) {
     this.unspents = inputTypes.map((inputType) => createOutputScript2of3(keys, inputType));
     this.inputTx = createInputTx(this.unspents, inputValue);
@@ -146,7 +147,7 @@ const runCombinations = (
     inputTypes: TestUnspentType[],
     maxNInputs: number,
     outputTypes: TestUnspentType[],
-    maxNOutputs: number
+    maxNOutputs: number,
   },
   callback: (inputCombo: TestUnspentType[], outputCombo: TestUnspentType[]) => void,
 ) => {
@@ -213,8 +214,8 @@ class Histogram {
 }
 
 const getKeyTriplets = (prefix: string, count: number) => [...Array(count)].map(
-  (_, i) => [1, 2, 3].map(
-    (j) => HDKey.fromMasterSeed(Buffer.from(`${prefix}/${i}/${j}`))
+  (v, i) => [1, 2, 3].map(
+    (j) => HDKey.fromMasterSeed(Buffer.from(`${prefix}/${i}/${j}`)),
   ),
 );
 
@@ -269,7 +270,7 @@ const runSignedTransactions = (
         forEach(cb: (txBuilder: any) => void) {
           inputTxs.forEach(({ inputKeys, unspents, inputTx }) => {
             const txBuilder = new bitcoin.TransactionBuilder(undefined, Infinity);
-            inputTx.outs.forEach((_: never, i: number) => txBuilder.addInput(inputTx, i));
+            inputTx.outs.forEach((v: never, i: number) => txBuilder.addInput(inputTx, i));
 
             outputs.forEach((scriptPubKey) => {
               txBuilder.tx.outs = [];

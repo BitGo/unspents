@@ -2,12 +2,12 @@ import * as should from 'should';
 
 import * as utxo from '../src';
 
+import { IDimensions } from '../src/dimensions';
 import {
   getOutputDimensionsForUnspentType,
   UnspentTypePubKeyHash,
   UnspentTypeScript2of3,
 } from './testutils';
-import {IDimensions} from "../src/dimensions";
 
 describe('Dimensions Attributes', function() {
   it('has read-only nInputs and nOutputs', function() {
