@@ -59,7 +59,7 @@ describe(`Dimension estimation errors`, function() {
     inputType: TestUnspentType,
     inputCount: number,
     outputType: TestUnspentType,
-    signedTxs: any[]
+    signedTxs: any[],
   ) => {
     const title =
       `should have correct vsize error bounds ${getExpectedInputErrors(inputType, inputCount, outputType)}` +
