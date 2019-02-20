@@ -7,14 +7,15 @@
     "sourceMap": true,
     "outDir": "dist",
     "baseUrl": ".",
-    "lib": ["es2016"],
+    "lib": ["es6", "es2016.array.include"],
     "paths": {
       "*": [
         "node_modules/*",
         "src/types/*"
       ]
     },
-    "strict": true
+    "strict": true,
+    "declaration": true
   },
   "include": [
     "src/**/*",

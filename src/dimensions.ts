@@ -63,7 +63,7 @@ https://github.com/bitcoinjs/bitcoinjs-lib/blob/v3.3.2/src/transaction.js#L194-L
 // Constants for signed TX input and output vsizes.
 // See https://bitcoincore.org/en/segwit_wallet_dev/#transaction-serialization for full description
 // FIXME(BG-9233): use weight units instead
-export const VirtualSizes: {[key: string]: number} = Object.freeze({
+export const VirtualSizes = Object.freeze({
   // FIXME(BG-7873): add support for signature grinding
 
   //
