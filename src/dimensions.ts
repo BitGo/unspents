@@ -193,12 +193,12 @@ interface IBitcoinTx {
   outs: IOutput[];
 }
 
-interface IOutputDimensions {
+export interface IOutputDimensions {
   count: number;
   size: number;
 }
 
-interface IBaseDimensions {
+export interface IBaseDimensions {
   nP2shInputs: number;
   nP2shP2wshInputs: number;
   nP2wshInputs: number;
