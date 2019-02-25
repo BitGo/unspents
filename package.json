@@ -1,6 +1,6 @@
 {
   "name": "bitgo-utxo-dimensions",
-  "version": "0.2.11-rc4",
+  "version": "0.2.11-rc7",
   "description": "Defines the chain codes used for different unspent types and methods to calculate bitcoin transaction sizes",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -8,7 +8,8 @@
     "test": "test"
   },
   "scripts": {
-    "postinstall": "./node_modules/.bin/tsc --project tsconfig.build.json",
+    "build": "tsc --project tsconfig.build.json",
+    "postinstall": "npm run build",
     "test": "mocha --require ts-node/register \"test/**/*.ts\""
   },
   "repository": {
