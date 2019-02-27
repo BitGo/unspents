@@ -171,7 +171,7 @@ const compactSize = (integer: number) => {
 /**
  * A collection of outputs is represented as their count and aggregate vsize
  */
-const StructOutputs = t.refinement(
+export const OutputDimensions = t.refinement(
   t.struct({
     count: PositiveInteger, // number of outputs
     size: PositiveInteger, // aggregate vsize
@@ -259,7 +259,7 @@ export const Dimensions = t.struct<IDimensions>({
   nP2shInputs: PositiveInteger,
   nP2shP2wshInputs: PositiveInteger,
   nP2wshInputs: PositiveInteger,
-  outputs: StructOutputs,
+  outputs: OutputDimensions,
 }, { name: 'Dimensions' }) as unknown as IDimensionsStruct;
 
 const zero = Object.freeze(Dimensions({
