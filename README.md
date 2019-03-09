@@ -1,4 +1,4 @@
-# bitgo-utxo-dimensions
+# @bitgo/unspents
 
 The package has two components:
 
