@@ -3,7 +3,7 @@ import should from 'should';
 // @ts-ignore
 import * as HDKey from 'hdkey';
 
-import * as utxo from '../../src';
+import { Dimensions } from '../../src';
 
 import {
   getInputDimensionsForUnspentType,
@@ -22,27 +22,27 @@ const testDimensionsFromTx = (txCombo: any) => {
 
   describe(`Combination inputs=${inputTypes}; outputs=${outputTypes}`, function() {
     const nInputs = inputTypes.length;
-    const outputDims = utxo.Dimensions.sum(...outputTypes.map(getOutputDimensionsForUnspentType));
+    const outputDims = Dimensions.sum(...outputTypes.map(getOutputDimensionsForUnspentType));
 
     it(`calculates dimensions from unsigned transaction`, function() {
       const unsignedTx = txCombo.getUnsignedTx();
 
       // does not work for unsigned transactions
-      should.throws(() => utxo.Dimensions.fromTransaction(unsignedTx));
+      should.throws(() => Dimensions.fromTransaction(unsignedTx));
 
       // unless explicitly allowed
-      utxo.Dimensions.fromTransaction(unsignedTx, { assumeUnsigned: utxo.Dimensions.ASSUME_P2SH })
-        .should.eql(utxo.Dimensions.sum({ nP2shInputs: nInputs }, outputDims));
+      Dimensions.fromTransaction(unsignedTx, { assumeUnsigned: Dimensions.ASSUME_P2SH })
+        .should.eql(Dimensions.sum({ nP2shInputs: nInputs }, outputDims));
 
-      utxo.Dimensions.fromTransaction(unsignedTx, { assumeUnsigned: utxo.Dimensions.ASSUME_P2SH_P2WSH })
-        .should.eql(utxo.Dimensions.sum({ nP2shP2wshInputs: nInputs }, outputDims));
+      Dimensions.fromTransaction(unsignedTx, { assumeUnsigned: Dimensions.ASSUME_P2SH_P2WSH })
+        .should.eql(Dimensions.sum({ nP2shP2wshInputs: nInputs }, outputDims));
 
-      utxo.Dimensions.fromTransaction(unsignedTx, { assumeUnsigned: utxo.Dimensions.ASSUME_P2WSH })
-        .should.eql(utxo.Dimensions.sum({ nP2wshInputs: nInputs }, outputDims));
+      Dimensions.fromTransaction(unsignedTx, { assumeUnsigned: Dimensions.ASSUME_P2WSH })
+        .should.eql(Dimensions.sum({ nP2wshInputs: nInputs }, outputDims));
     });
 
     it(`calculates dimensions for signed transaction`, function() {
-      const dimensions = utxo.Dimensions.fromTransaction(txCombo.getSignedTx());
+      const dimensions = Dimensions.fromTransaction(txCombo.getSignedTx());
       dimensions.should.eql(expectedDims);
     });
 
@@ -51,8 +51,8 @@ const testDimensionsFromTx = (txCombo: any) => {
 
       // test Dimensions.fromInput()
       inputTypes.forEach((input: any, i: number) =>
-        utxo.Dimensions.fromInput(signedTx.ins[i])
-          .should.eql(utxo.Dimensions.sum(getInputDimensionsForUnspentType(input))),
+        Dimensions.fromInput(signedTx.ins[i])
+          .should.eql(Dimensions.sum(getInputDimensionsForUnspentType(input))),
       );
     });
   });
@@ -67,8 +67,8 @@ describe(`Dimensions for transaction combinations`, function() {
   };
 
   runCombinations(params, (inputTypeCombo: any, outputTypeCombo: any) => {
-    const expectedInputDims = utxo.Dimensions.sum(...inputTypeCombo.map(getInputDimensionsForUnspentType));
-    const expectedOutputDims = utxo.Dimensions.sum(...outputTypeCombo.map(getOutputDimensionsForUnspentType));
+    const expectedInputDims = Dimensions.sum(...inputTypeCombo.map(getInputDimensionsForUnspentType));
+    const expectedOutputDims = Dimensions.sum(...outputTypeCombo.map(getOutputDimensionsForUnspentType));
 
     const keys = [1, 2, 3].map((v) => HDKey.fromMasterSeed(Buffer.from(`test/2/${v}`)));
 

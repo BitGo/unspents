@@ -1,6 +1,6 @@
 import 'should';
 
-import * as utxo from '../../src';
+import { Dimensions } from '../../src';
 
 import {
   TestUnspentType,
@@ -69,7 +69,7 @@ describe(`Dimension estimation errors`, function() {
       this.timeout(5000);
       const inputVSizeErrors = new Histogram();
       signedTxs.forEach((tx) => {
-        const dims = utxo.Dimensions.fromTransaction(tx);
+        const dims = Dimensions.fromTransaction(tx);
 
         const totalVSize = tx.virtualSize();
         const outputsVSize = totalVSize - Object.assign(tx.clone(), { outs: [] }).virtualSize();

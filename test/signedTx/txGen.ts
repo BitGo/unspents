@@ -7,7 +7,7 @@ import * as bitcoin from 'bitgo-utxo-lib';
 // @ts-ignore
 import * as HDKey from 'hdkey';
 
-import { IDimensions } from '../../src/dimensions';
+import { IDimensions } from '../../src';
 import {
   TestUnspentType,
   UnspentTypeOpReturn,

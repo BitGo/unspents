@@ -1,18 +1,5 @@
-import * as chain from './codes';
+import Codes from './codes';
+export { Codes };
 
-import {
-  Dimensions,
-  IBaseDimensions,
-  IDimensions,
-  IOutputDimensions,
-  VirtualSizes,
-} from './dimensions';
+export * from './dimensions';
 
-export {
-  chain,
-  Dimensions,
-  IBaseDimensions,
-  IDimensions,
-  IOutputDimensions,
-  VirtualSizes,
-};

@@ -1,8 +1,14 @@
 import * as should from 'should';
 
-import * as utxo from '../src';
+import {
+  Codes,
+  Dimensions,
+  IDimensions,
+  IOutputDimensions,
+  OutputDimensions,
+  VirtualSizes
+} from '../src';
 
-import { IDimensions } from '../src/dimensions';
 import {
   getOutputDimensionsForUnspentType,
   UnspentTypePubKeyHash,
@@ -11,14 +17,21 @@ import {
 
 describe('Dimensions Attributes', function() {
   it('has read-only nInputs and nOutputs', function() {
-    should.throws(() => utxo.Dimensions.zero().nInputs = 1, /read-only/);
-    should.throws(() => utxo.Dimensions.zero().nOutputs = 1, /read-only/);
+    should.throws(() => Dimensions.zero().nInputs = 1, /read-only/);
+    should.throws(() => Dimensions.zero().nOutputs = 1, /read-only/);
+  });
+});
+
+describe('Output Dimensions', function() {
+  it('instantiates', function() {
+    const dims: IOutputDimensions = OutputDimensions({ size: 0, count: 0 });
+    should.throws(() => dims.count += 1);
   });
 });
 
 describe('Dimensions Arithmetic', function() {
   it('sums correctly', function() {
-    utxo.Dimensions.zero().plus({ nP2shInputs: 1 }).should.eql(utxo.Dimensions({
+    Dimensions.zero().plus({ nP2shInputs: 1 }).should.eql(Dimensions({
       nP2shInputs: 1,
       nP2shP2wshInputs: 0,
       nP2wshInputs: 0,
@@ -34,9 +47,9 @@ describe('Dimensions Arithmetic', function() {
       { outputs: { size: 0, count: 0 } },
     ];
 
-    components.forEach((component) => should.doesNotThrow(() => utxo.Dimensions.sum(component)));
+    components.forEach((component) => should.doesNotThrow(() => Dimensions.sum(component)));
 
-    const sum = utxo.Dimensions.zero()
+    const sum = Dimensions.zero()
       .plus(components[0])
       .plus(components[1])
       .plus(components[2])
@@ -44,9 +57,9 @@ describe('Dimensions Arithmetic', function() {
       .plus(components[4])
       .plus(components[5]);
 
-    sum.should.eql(utxo.Dimensions.sum(...components));
+    sum.should.eql(Dimensions.sum(...components));
 
-    sum.should.eql(utxo.Dimensions({
+    sum.should.eql(Dimensions({
       nP2shInputs: 1,
       nP2shP2wshInputs: 2,
       nP2wshInputs: 3,
@@ -57,25 +70,25 @@ describe('Dimensions Arithmetic', function() {
   });
 
   it('prevents sum of invalid data', function() {
-    should.doesNotThrow(() => utxo.Dimensions.sum({ outputs: { count: 0, size: 0 } }));
-    should.doesNotThrow(() => utxo.Dimensions.sum({ outputs: { count: 1, size: 1 } }));
-    should.throws(() => utxo.Dimensions.sum({ nOutputs: 1 }));
-    should.throws(() => utxo.Dimensions.sum({ nOutputs: 1, outputs: { count: 2, size: 1 } }));
+    should.doesNotThrow(() => Dimensions.sum({ outputs: { count: 0, size: 0 } }));
+    should.doesNotThrow(() => Dimensions.sum({ outputs: { count: 1, size: 1 } }));
+    should.throws(() => Dimensions.sum({ nOutputs: 1 }));
+    should.throws(() => Dimensions.sum({ nOutputs: 1, outputs: { count: 2, size: 1 } }));
     // @ts-ignore
-    should.throws(() => utxo.Dimensions.sum({ nP2shInputs: 1 }, { nP2shInputs: 'foo' }));
-    should.throws(() => utxo.Dimensions.sum({ outputs: { count: 1, size: 0 } }));
-    should.throws(() => utxo.Dimensions.sum({ outputs: { count: 0, size: 1 } }));
-    should.throws(() => utxo.Dimensions.sum({ outputs: { count: 1, size: 1 } }, { outputs: { count: 1, size: 0 } }));
+    should.throws(() => Dimensions.sum({ nP2shInputs: 1 }, { nP2shInputs: 'foo' }));
+    should.throws(() => Dimensions.sum({ outputs: { count: 1, size: 0 } }));
+    should.throws(() => Dimensions.sum({ outputs: { count: 0, size: 1 } }));
+    should.throws(() => Dimensions.sum({ outputs: { count: 1, size: 1 } }, { outputs: { count: 1, size: 0 } }));
   });
 
   it('multiplies correctly', function() {
-    utxo.Dimensions({
+    Dimensions({
       nP2shInputs: 1,
       nP2shP2wshInputs: 2,
       nP2wshInputs: 3,
       outputs: { count: 1, size: 22 },
     }).times(3).should.eql(
-      utxo.Dimensions({
+      Dimensions({
         nP2shInputs: 3,
         nP2shP2wshInputs: 6,
         nP2wshInputs: 9,
@@ -87,29 +100,29 @@ describe('Dimensions Arithmetic', function() {
 
 describe('Dimensions from unspent types', function() {
   it('determines unspent size according to chain', function() {
-    utxo.chain.codes.p2sh.values.forEach((chain) =>
-      utxo.Dimensions.fromUnspent({ chain })
-        .should.eql(utxo.Dimensions.sum({ nP2shInputs: 1 })),
+    Codes.p2sh.values.forEach((chain) =>
+      Dimensions.fromUnspent({ chain })
+        .should.eql(Dimensions.sum({ nP2shInputs: 1 })),
     );
 
-    utxo.chain.codes.p2shP2wsh.values.forEach((chain) =>
-      utxo.Dimensions.fromUnspent({ chain })
-        .should.eql(utxo.Dimensions.sum({ nP2shP2wshInputs: 1 })),
+    Codes.p2shP2wsh.values.forEach((chain) =>
+      Dimensions.fromUnspent({ chain })
+        .should.eql(Dimensions.sum({ nP2shP2wshInputs: 1 })),
     );
 
-    utxo.chain.codes.p2wsh.values.forEach((chain) =>
-      utxo.Dimensions.fromUnspent({ chain })
-        .should.eql(utxo.Dimensions.sum({ nP2wshInputs: 1 })),
+    Codes.p2wsh.values.forEach((chain) =>
+      Dimensions.fromUnspent({ chain })
+        .should.eql(Dimensions.sum({ nP2wshInputs: 1 })),
     );
 
-    utxo.Dimensions.fromUnspents([
-      { chain: utxo.chain.codes.p2sh.internal },
-      { chain: utxo.chain.codes.p2sh.external },
-      { chain: utxo.chain.codes.p2shP2wsh.internal },
-      { chain: utxo.chain.codes.p2shP2wsh.external },
-      { chain: utxo.chain.codes.p2wsh.internal },
-      { chain: utxo.chain.codes.p2wsh.external },
-    ]).should.eql(utxo.Dimensions({
+    Dimensions.fromUnspents([
+      { chain: Codes.p2sh.internal },
+      { chain: Codes.p2sh.external },
+      { chain: Codes.p2shP2wsh.internal },
+      { chain: Codes.p2shP2wsh.external },
+      { chain: Codes.p2wsh.internal },
+      { chain: Codes.p2wsh.external },
+    ]).should.eql(Dimensions({
       nP2shP2wshInputs: 2,
       nP2shInputs: 2,
       nP2wshInputs: 2,
@@ -119,11 +132,11 @@ describe('Dimensions from unspent types', function() {
 
   it('calculates output dimensions dynamically', function() {
     const expectedSizes = new Map([
-      [UnspentTypeScript2of3.p2sh, utxo.VirtualSizes.txP2shOutputSize],
-      [UnspentTypeScript2of3.p2shP2wsh, utxo.VirtualSizes.txP2shP2wshOutputSize],
-      [UnspentTypeScript2of3.p2wsh, utxo.VirtualSizes.txP2wshOutputSize],
-      [UnspentTypePubKeyHash.p2pkh, utxo.VirtualSizes.txP2pkhOutputSize],
-      [UnspentTypePubKeyHash.p2wpkh, utxo.VirtualSizes.txP2wpkhOutputSize],
+      [UnspentTypeScript2of3.p2sh, VirtualSizes.txP2shOutputSize],
+      [UnspentTypeScript2of3.p2shP2wsh, VirtualSizes.txP2shP2wshOutputSize],
+      [UnspentTypeScript2of3.p2wsh, VirtualSizes.txP2wshOutputSize],
+      [UnspentTypePubKeyHash.p2pkh, VirtualSizes.txP2pkhOutputSize],
+      [UnspentTypePubKeyHash.p2wpkh, VirtualSizes.txP2wpkhOutputSize],
     ]);
 
     [...Object.keys(UnspentTypeScript2of3), ...Object.keys(UnspentTypePubKeyHash)].forEach((type) =>
@@ -140,7 +153,7 @@ describe('Dimensions estimates', function() {
       nP2shP2wshInputs: number,
       nP2wshInputs: number,
       nOutputs: number,
-    ): IDimensions => utxo.Dimensions.sum(
+    ): IDimensions => Dimensions.sum(
       {
         nP2shInputs,
         nP2shP2wshInputs,

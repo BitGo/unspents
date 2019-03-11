@@ -107,19 +107,28 @@ class CodesByType extends CodeGroup {
   }
 }
 
-export const codes = Object.freeze({
-  p2sh: Object.freeze(new CodesByPurpose(UnspentType.p2sh)),
-  p2shP2wsh: Object.freeze(new CodesByPurpose(UnspentType.p2shP2wsh)),
-  p2wsh: Object.freeze(new CodesByPurpose(UnspentType.p2wsh)),
-  external: Object.freeze(new CodesByType(Purpose.external)),
-  internal: Object.freeze(new CodesByType(Purpose.internal)),
-  all: Object.freeze(codeList.map(({ id }) => id)),
-});
 
 const boundHas = (instance: CodeGroup) => instance.has.bind(instance);
 
-export const isP2sh = boundHas(codes.p2sh);
-export const isP2shP2wsh = boundHas(codes.p2shP2wsh);
-export const isP2wsh = boundHas(codes.p2wsh);
-export const isExternal = boundHas(codes.external);
-export const isInternal = boundHas(codes.internal);
+const p2sh = Object.freeze(new CodesByPurpose(UnspentType.p2sh));
+const p2shP2wsh = Object.freeze(new CodesByPurpose(UnspentType.p2shP2wsh));
+const p2wsh = Object.freeze(new CodesByPurpose(UnspentType.p2wsh));
+const external = Object.freeze(new CodesByType(Purpose.external));
+const internal = Object.freeze(new CodesByType(Purpose.internal));
+const all = Object.freeze(codeList.map(({ id }) => id));
+
+export default Object.freeze({
+  ChainType,
+  p2sh,
+  p2shP2wsh,
+  p2wsh,
+  external,
+  internal,
+  all,
+  isP2sh: boundHas(p2sh),
+  isP2shP2wsh: boundHas(p2shP2wsh),
+  isP2wsh: boundHas(p2wsh),
+  isExternal: boundHas(external),
+  isInternal: boundHas(internal),
+  isValid
+});

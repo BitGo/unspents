@@ -1,8 +1,7 @@
 import * as _ from 'lodash';
 import * as t from 'tcomb';
 
-import * as utxoChain from './codes';
-import { ChainCode } from './codes';
+import Codes, { ChainCode } from './codes';
 import { PositiveInteger } from './types';
 
 /*
@@ -168,11 +167,16 @@ const compactSize = (integer: number) => {
   return 9;
 };
 
+export interface IOutputDimensions {
+  count: number;
+  size: number;
+}
+
 /**
  * A collection of outputs is represented as their count and aggregate vsize
  */
-export const OutputDimensions = t.refinement(
-  t.struct({
+export const OutputDimensions = t.refinement<IOutputDimensions>(
+  t.struct<IOutputDimensions>({
     count: PositiveInteger, // number of outputs
     size: PositiveInteger, // aggregate vsize
   }),
@@ -191,11 +195,6 @@ interface IOutput {
 interface IBitcoinTx {
   ins: IOutput[];
   outs: IOutput[];
-}
-
-export interface IOutputDimensions {
-  count: number;
-  size: number;
 }
 
 export interface IBaseDimensions {
@@ -344,10 +343,10 @@ Dimensions.sum = function(...args: Array<Partial<IDimensions>>): IDimensions {
  * @return {Number}
  */
 Dimensions.getOutputScriptLengthForChain = function(chain: ChainCode): number {
-  if (!utxoChain.isValid(chain)) {
+  if (!Codes.isValid(chain)) {
     throw new TypeError('invalid chain code');
   }
-  return utxoChain.isP2wsh(chain) ? 34 : 23;
+  return Codes.isP2wsh(chain) ? 34 : 23;
 };
 
 /**
@@ -462,19 +461,19 @@ Dimensions.fromOutputOnChain = function(chain) {
  * @throws if the chain code is invalid or unsupported
  */
 Dimensions.fromUnspent = ({ chain }) => {
-  if (!utxoChain.isValid(chain)) {
+  if (!Codes.isValid(chain)) {
     throw new TypeError('invalid chain code');
   }
 
-  if (utxoChain.isP2sh(chain)) {
+  if (Codes.isP2sh(chain)) {
     return Dimensions.sum({ nP2shInputs: 1 });
   }
 
-  if (utxoChain.isP2shP2wsh(chain)) {
+  if (Codes.isP2shP2wsh(chain)) {
     return Dimensions.sum({ nP2shP2wshInputs: 1 });
   }
 
-  if (utxoChain.isP2wsh(chain)) {
+  if (Codes.isP2wsh(chain)) {
     return Dimensions.sum({ nP2wshInputs: 1 });
   }
 
