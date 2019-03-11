@@ -20,11 +20,11 @@ import {
 const testDimensionsFromTx = (txCombo: any) => {
   const { inputTypes, outputTypes, expectedDims } = txCombo;
 
-  describe(`Combination inputs=${inputTypes}; outputs=${outputTypes}`, function () {
+  describe(`Combination inputs=${inputTypes}; outputs=${outputTypes}`, function() {
     const nInputs = inputTypes.length;
     const outputDims = utxo.Dimensions.sum(...outputTypes.map(getOutputDimensionsForUnspentType));
 
-    it(`calculates dimensions from unsigned transaction`, function () {
+    it(`calculates dimensions from unsigned transaction`, function() {
       const unsignedTx = txCombo.getUnsignedTx();
 
       // does not work for unsigned transactions
@@ -41,25 +41,24 @@ const testDimensionsFromTx = (txCombo: any) => {
         .should.eql(utxo.Dimensions.sum({ nP2wshInputs: nInputs }, outputDims));
     });
 
-    it(`calculates dimensions for signed transaction`, function () {
+    it(`calculates dimensions for signed transaction`, function() {
       const dimensions = utxo.Dimensions.fromTransaction(txCombo.getSignedTx());
       dimensions.should.eql(expectedDims);
     });
 
-    it(`calculates dimensions for signed input of transaction`, function () {
+    it(`calculates dimensions for signed input of transaction`, function() {
       const signedTx = txCombo.getSignedTx();
 
       // test Dimensions.fromInput()
       inputTypes.forEach((input: any, i: number) =>
         utxo.Dimensions.fromInput(signedTx.ins[i])
-          .should.eql(utxo.Dimensions.sum(getInputDimensionsForUnspentType(input)))
+          .should.eql(utxo.Dimensions.sum(getInputDimensionsForUnspentType(input))),
       );
     });
   });
 };
 
-
-describe(`Dimensions for transaction combinations`, function () {
+describe(`Dimensions for transaction combinations`, function() {
   const params = {
     inputTypes: Object.keys(UnspentTypeScript2of3),
     maxNInputs: 3,
@@ -78,8 +77,8 @@ describe(`Dimensions for transaction combinations`, function () {
         keys,
         inputTypeCombo,
         outputTypeCombo,
-        expectedInputDims.plus(expectedOutputDims)
-      )
+        expectedInputDims.plus(expectedOutputDims),
+      ),
     );
 
     // Doubling the inputs should yield twice the input dims
@@ -88,8 +87,8 @@ describe(`Dimensions for transaction combinations`, function () {
         keys,
         [...inputTypeCombo, ...inputTypeCombo],
         outputTypeCombo,
-        expectedInputDims.plus(expectedInputDims).plus(expectedOutputDims)
-      )
+        expectedInputDims.plus(expectedInputDims).plus(expectedOutputDims),
+      ),
     );
 
     // Same for outputs
@@ -98,8 +97,8 @@ describe(`Dimensions for transaction combinations`, function () {
         keys,
         inputTypeCombo,
         [...outputTypeCombo, ...outputTypeCombo],
-        expectedInputDims.plus(expectedOutputDims).plus(expectedOutputDims)
-      )
+        expectedInputDims.plus(expectedOutputDims).plus(expectedOutputDims),
+      ),
     );
   });
 });

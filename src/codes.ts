@@ -1,4 +1,4 @@
-import * as t from 'tcomb';
+import * as tcomb from 'tcomb';
 
 export type ChainCode = number;
 
@@ -9,14 +9,14 @@ class ErrorInvalidCode extends Error {
 }
 
 enum UnspentType {
-  p2sh = "p2sh",
-  p2shP2wsh = "p2shP2wsh",
-  p2wsh = "p2wsh",
+  p2sh = 'p2sh',
+  p2shP2wsh = 'p2shP2wsh',
+  p2wsh = 'p2wsh',
 }
 
 enum Purpose {
-  internal = "internal",
-  external = "external",
+  internal = 'internal',
+  external = 'external',
 }
 
 interface ICode {
@@ -34,10 +34,10 @@ const codeList: ReadonlyArray<Readonly<ICode>> = Object.freeze((
     [1, UnspentType.p2sh, Purpose.internal],
     [11, UnspentType.p2shP2wsh, Purpose.internal],
     [21, UnspentType.p2wsh, Purpose.internal],
-  ] as [ChainCode, UnspentType, Purpose][]
+  ] as Array<[ChainCode, UnspentType, Purpose]>
 ).map(([id, type, purpose]) => Object.freeze({ id, type, purpose })));
 
-export const ChainType = t.irreducible('ChainType', (n) => isValid(n));
+export const ChainType = tcomb.irreducible('ChainType', (n) => isValid(n));
 
 export const isValid = (c: ChainCode): boolean =>
   codeList.some(({ id }) => id === c);
@@ -55,7 +55,7 @@ class CodeGroup {
     this.values = Object.freeze([...values]);
   }
 
-  has(code: ChainCode): boolean {
+  public has(code: ChainCode): boolean {
     if (!isValid(code)) {
       throw new ErrorInvalidCode(code);
     }
@@ -68,19 +68,19 @@ class CodesByPurpose extends CodeGroup {
   public external: ChainCode;
 
   constructor(t: UnspentType) {
-    const codes: Map<Purpose, ChainCode> = new Map(
+    const codeMap: Map<Purpose, ChainCode> = new Map(
       codeList
         .filter(({ type }) => type === t)
-        .map(({ purpose, id }): [Purpose, ChainCode] => [purpose, id])
+        .map(({ purpose, id }): [Purpose, ChainCode] => [purpose, id]),
     );
-    if (codes.size !== 2) {
+    if (codeMap.size !== 2) {
       throw new Error(`unexpected result`);
     }
 
-    super(codes.values());
+    super(codeMap.values());
 
-    this.internal = throwIfUndefined(codes.get(Purpose.internal));
-    this.external = throwIfUndefined(codes.get(Purpose.external));
+    this.internal = throwIfUndefined(codeMap.get(Purpose.internal));
+    this.external = throwIfUndefined(codeMap.get(Purpose.external));
   }
 }
 
@@ -90,20 +90,20 @@ class CodesByType extends CodeGroup {
   public p2wsh: ChainCode;
 
   constructor(p: Purpose) {
-    const codes: Map<UnspentType, ChainCode> = new Map(
+    const codeMap: Map<UnspentType, ChainCode> = new Map(
       codeList
         .filter(({ purpose }) => purpose === p)
-        .map(({ type, id }): [UnspentType, ChainCode] => [type, id])
+        .map(({ type, id }): [UnspentType, ChainCode] => [type, id]),
     );
-    if (codes.size !== 3) {
+    if (codeMap.size !== 3) {
       throw new Error(`unexpected result`);
     }
 
-    super(codes.values());
+    super(codeMap.values());
 
-    this.p2sh = throwIfUndefined(codes.get(UnspentType.p2sh));
-    this.p2shP2wsh = throwIfUndefined(codes.get(UnspentType.p2shP2wsh));
-    this.p2wsh = throwIfUndefined(codes.get(UnspentType.p2wsh));
+    this.p2sh = throwIfUndefined(codeMap.get(UnspentType.p2sh));
+    this.p2shP2wsh = throwIfUndefined(codeMap.get(UnspentType.p2shP2wsh));
+    this.p2wsh = throwIfUndefined(codeMap.get(UnspentType.p2wsh));
   }
 }
 

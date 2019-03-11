@@ -63,7 +63,7 @@ https://github.com/bitcoinjs/bitcoinjs-lib/blob/v3.3.2/src/transaction.js#L194-L
 // Constants for signed TX input and output vsizes.
 // See https://bitcoincore.org/en/segwit_wallet_dev/#transaction-serialization for full description
 // FIXME(BG-9233): use weight units instead
-export const VirtualSizes: {[key: string]: number} = Object.freeze({
+export const VirtualSizes = Object.freeze({
   // FIXME(BG-7873): add support for signature grinding
 
   //
@@ -171,7 +171,7 @@ const compactSize = (integer: number) => {
 /**
  * A collection of outputs is represented as their count and aggregate vsize
  */
-const StructOutputs = t.refinement(
+export const OutputDimensions = t.refinement(
   t.struct({
     count: PositiveInteger, // number of outputs
     size: PositiveInteger, // aggregate vsize
@@ -193,12 +193,12 @@ interface IBitcoinTx {
   outs: IOutput[];
 }
 
-interface IOutputDimensions {
+export interface IOutputDimensions {
   count: number;
   size: number;
 }
 
-interface IBaseDimensions {
+export interface IBaseDimensions {
   nP2shInputs: number;
   nP2shP2wshInputs: number;
   nP2wshInputs: number;
@@ -259,7 +259,7 @@ export const Dimensions = t.struct<IDimensions>({
   nP2shInputs: PositiveInteger,
   nP2shP2wshInputs: PositiveInteger,
   nP2wshInputs: PositiveInteger,
-  outputs: StructOutputs,
+  outputs: OutputDimensions,
 }, { name: 'Dimensions' }) as unknown as IDimensionsStruct;
 
 const zero = Object.freeze(Dimensions({

@@ -7,14 +7,10 @@
     "sourceMap": true,
     "outDir": "dist",
     "baseUrl": ".",
-    "lib": ["es2016"],
-    "paths": {
-      "*": [
-        "node_modules/*",
-        "src/types/*"
-      ]
-    },
-    "strict": true
+    "lib": ["es6", "es2016.array.include"],
+    "strict": true,
+    "declaration": true,
+    "types": ["lodash", "node", "mocha"]
   },
   "include": [
     "src/**/*",
