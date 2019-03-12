@@ -243,6 +243,14 @@ export interface IDimensionsStruct extends t.Struct<IDimensions> {
   fromUnspents(unspents: Array<{ chain: ChainCode }>): IDimensions;
 
   fromTransaction(tx: IBitcoinTx, params?: { assumeUnsigned?: symbol } ): IDimensions;
+
+  SingleOutput: {
+    p2sh: IDimensions,
+    p2shP2wsh: IDimensions,
+    p2wsh: IDimensions,
+    p2pkh: IDimensions,
+    p2wpkh: IDimensions,
+  }
 }
 
 /**
@@ -624,3 +632,17 @@ Dimensions.prototype.getOutputsVSize = function() {
 Dimensions.prototype.getVSize = function() {
   return this.getOverheadVSize() + this.getInputsVSize() + this.getOutputsVSize();
 };
+
+{
+  const singleOutput = (size: number) =>
+    Object.freeze(Dimensions.sum({ outputs: { count: 1, size }}));
+
+  Dimensions.SingleOutput = {
+    p2sh: singleOutput(VirtualSizes.txP2shOutputSize),
+    p2shP2wsh: singleOutput(VirtualSizes.txP2shP2wshOutputSize),
+    p2wsh: singleOutput(VirtualSizes.txP2wshOutputSize),
+
+    p2pkh: singleOutput(VirtualSizes.txP2pkhOutputSize),
+    p2wpkh: singleOutput(VirtualSizes.txP2wpkhOutputSize),
+  }
+}

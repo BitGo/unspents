@@ -69,6 +69,18 @@ describe('Dimensions Arithmetic', function() {
     sum.nOutputs.should.eql(sum.outputs.count);
   });
 
+  it('provides some typical output sizes', function () {
+    ([
+      [Dimensions.SingleOutput.p2sh, VirtualSizes.txP2shOutputSize],
+      [Dimensions.SingleOutput.p2shP2wsh, VirtualSizes.txP2shP2wshOutputSize],
+      [Dimensions.SingleOutput.p2wsh, VirtualSizes.txP2wshOutputSize],
+      [Dimensions.SingleOutput.p2pkh, VirtualSizes.txP2pkhOutputSize],
+      [Dimensions.SingleOutput.p2wpkh, VirtualSizes.txP2wpkhOutputSize]
+    ] as [IDimensions, number][]).forEach(([dims, size]) => {
+      dims.getOutputsVSize().should.eql(size);
+    });
+  });
+
   it('prevents sum of invalid data', function() {
     should.doesNotThrow(() => Dimensions.sum({ outputs: { count: 0, size: 0 } }));
     should.doesNotThrow(() => Dimensions.sum({ outputs: { count: 1, size: 1 } }));
