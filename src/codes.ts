@@ -9,10 +9,14 @@ class ErrorInvalidCode extends Error {
 }
 
 enum UnspentType {
+  p2pkh = 'p2pkh',
   p2sh = 'p2sh',
   p2shP2wsh = 'p2shP2wsh',
+  p2wpkh = 'p2wpkh',
   p2wsh = 'p2wsh',
 }
+
+const UnspentTypeTcomb = tcomb.enums.of(Object.keys(UnspentType));
 
 enum Purpose {
   internal = 'internal',
@@ -107,7 +111,6 @@ class CodesByType extends CodeGroup {
   }
 }
 
-
 const boundHas = (instance: CodeGroup) => instance.has.bind(instance);
 
 const p2sh = Object.freeze(new CodesByPurpose(UnspentType.p2sh));
@@ -118,7 +121,10 @@ const internal = Object.freeze(new CodesByType(Purpose.internal));
 const all = Object.freeze(codeList.map(({ id }) => id));
 
 export default Object.freeze({
+  /* @deprecated: use ChainCodeTcomb */
   ChainType,
+  ChainCodeTcomb: ChainType,
+  UnspentTypeTcomb,
   p2sh,
   p2shP2wsh,
   p2wsh,
@@ -130,5 +136,5 @@ export default Object.freeze({
   isP2wsh: boundHas(p2wsh),
   isExternal: boundHas(external),
   isInternal: boundHas(internal),
-  isValid
+  isValid,
 });
