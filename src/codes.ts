@@ -8,7 +8,7 @@ class ErrorInvalidCode extends Error {
   }
 }
 
-enum UnspentType {
+export enum UnspentType {
   p2pkh = 'p2pkh',
   p2sh = 'p2sh',
   p2shP2wsh = 'p2shP2wsh',
@@ -22,6 +22,8 @@ enum Purpose {
   internal = 'internal',
   external = 'external',
 }
+
+const PurposeTcomb = tcomb.enums.of(Object.keys(Purpose));
 
 interface ICode {
   id: ChainCode;
@@ -42,6 +44,23 @@ const codeList: ReadonlyArray<Readonly<ICode>> = Object.freeze((
 ).map(([id, type, purpose]) => Object.freeze({ id, type, purpose })));
 
 export const ChainType = tcomb.irreducible('ChainType', (n) => isValid(n));
+
+const forType = (u: UnspentType): CodesByPurpose => {
+  // Do tcomb type checking in js projects that use this lib
+  if (!UnspentTypeTcomb.is(u)) {
+   throw new Error(`invalid unspent type: ${u}`);
+  }
+
+  return new CodesByPurpose(u);
+};
+
+const typeForCode = (c: ChainCode): UnspentType => {
+  const code = codeList.find(({ id }) => id === c);
+  if (!code) {
+    throw new ErrorInvalidCode(c);
+  }
+  return code.type;
+};
 
 export const isValid = (c: ChainCode): boolean =>
   codeList.some(({ id }) => id === c);
@@ -78,7 +97,7 @@ class CodesByPurpose extends CodeGroup {
         .map(({ purpose, id }): [Purpose, ChainCode] => [purpose, id]),
     );
     if (codeMap.size !== 2) {
-      throw new Error(`unexpected result`);
+      throw new Error(`unexpected number of codes for type ${t}`);
     }
 
     super(codeMap.values());
@@ -124,6 +143,7 @@ export default Object.freeze({
   /* @deprecated: use ChainCodeTcomb */
   ChainType,
   ChainCodeTcomb: ChainType,
+  PurposeTcomb,
   UnspentTypeTcomb,
   p2sh,
   p2shP2wsh,
@@ -137,4 +157,6 @@ export default Object.freeze({
   isExternal: boundHas(external),
   isInternal: boundHas(internal),
   isValid,
+  forType,
+  typeForCode,
 });

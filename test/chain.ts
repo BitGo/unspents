@@ -1,5 +1,5 @@
 import should from 'should';
-import Codes from '../src/codes';
+import Codes, { UnspentType } from '../src/codes';
 
 describe('chain codes', function() {
 
@@ -13,6 +13,23 @@ describe('chain codes', function() {
     Codes.internal.p2sh,
     Codes.internal.p2shP2wsh,
     Codes.internal.p2wsh,
+  ];
+
+  const purposeByScriptTypeList = [
+    Codes.p2sh,
+    Codes.p2shP2wsh,
+    Codes.p2wsh,
+  ];
+
+  const supportedUnspentTypeList = [
+    UnspentType.p2sh,
+    UnspentType.p2shP2wsh,
+    UnspentType.p2wsh,
+  ];
+
+  const unsupportedUnspentTypeList = [
+    UnspentType.p2pkh,
+    UnspentType.p2wpkh,
   ];
 
   it(`is immutable`, function() {
@@ -81,6 +98,7 @@ describe('chain codes', function() {
       Codes.isP2sh,
       Codes.isP2shP2wsh,
       Codes.isP2wsh,
+      Codes.typeForCode,
     ].forEach(
       (func) =>
         // @ts-ignore
@@ -88,6 +106,23 @@ describe('chain codes', function() {
     );
 
     invalidInputs.should.matchEach((input) => !Codes.isValid(input));
+  });
+
+  it('map to unspent types', function() {
+    [...externalList, ...internalList].forEach(
+      (code, index) =>
+          Codes.typeForCode(code).should.equal([...supportedUnspentTypeList, ...supportedUnspentTypeList][index]),
+    );
+  });
+
+  it('map from unspent types', function() {
+    supportedUnspentTypeList.forEach(
+      (type, index) => Codes.forType(type).should.eql(purposeByScriptTypeList[index]),
+    );
+
+    unsupportedUnspentTypeList.forEach(
+      (type) => should.throws(() => Codes.forType(type)),
+    );
   });
 
   it(`has chain type`, function() {
