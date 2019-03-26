@@ -6,7 +6,7 @@ import {
   IDimensions,
   IOutputDimensions,
   OutputDimensions,
-  VirtualSizes
+  VirtualSizes,
 } from '../src';
 
 import {
@@ -69,14 +69,14 @@ describe('Dimensions Arithmetic', function() {
     sum.nOutputs.should.eql(sum.outputs.count);
   });
 
-  it('provides some typical output sizes', function () {
+  it('provides some typical output sizes', function() {
     ([
       [Dimensions.SingleOutput.p2sh, VirtualSizes.txP2shOutputSize],
       [Dimensions.SingleOutput.p2shP2wsh, VirtualSizes.txP2shP2wshOutputSize],
       [Dimensions.SingleOutput.p2wsh, VirtualSizes.txP2wshOutputSize],
       [Dimensions.SingleOutput.p2pkh, VirtualSizes.txP2pkhOutputSize],
-      [Dimensions.SingleOutput.p2wpkh, VirtualSizes.txP2wpkhOutputSize]
-    ] as [IDimensions, number][]).forEach(([dims, size]) => {
+      [Dimensions.SingleOutput.p2wpkh, VirtualSizes.txP2wpkhOutputSize],
+    ] as Array<[IDimensions, number]>).forEach(([dims, size]) => {
       dims.getOutputsVSize().should.eql(size);
     });
   });

@@ -219,11 +219,19 @@ export interface IDimensions extends IBaseDimensions {
 }
 
 export interface IDimensionsStruct extends t.Struct<IDimensions> {
+
+  (v: IBaseDimensions): IDimensions;
   ASSUME_P2SH: symbol;
   ASSUME_P2SH_P2WSH: symbol;
   ASSUME_P2WSH: symbol;
 
-  (v: IBaseDimensions): IDimensions;
+  SingleOutput: {
+    p2sh: IDimensions,
+    p2shP2wsh: IDimensions,
+    p2wsh: IDimensions,
+    p2pkh: IDimensions,
+    p2wpkh: IDimensions,
+  };
   new (v: IBaseDimensions): IDimensions;
 
   zero(): IDimensions;
@@ -243,14 +251,6 @@ export interface IDimensionsStruct extends t.Struct<IDimensions> {
   fromUnspents(unspents: Array<{ chain: ChainCode }>): IDimensions;
 
   fromTransaction(tx: IBitcoinTx, params?: { assumeUnsigned?: symbol } ): IDimensions;
-
-  SingleOutput: {
-    p2sh: IDimensions,
-    p2shP2wsh: IDimensions,
-    p2wsh: IDimensions,
-    p2pkh: IDimensions,
-    p2wpkh: IDimensions,
-  }
 }
 
 /**
@@ -635,7 +635,7 @@ Dimensions.prototype.getVSize = function() {
 
 {
   const singleOutput = (size: number) =>
-    Object.freeze(Dimensions.sum({ outputs: { count: 1, size }}));
+    Object.freeze(Dimensions.sum({ outputs: { count: 1, size } }));
 
   Dimensions.SingleOutput = {
     p2sh: singleOutput(VirtualSizes.txP2shOutputSize),
@@ -644,5 +644,5 @@ Dimensions.prototype.getVSize = function() {
 
     p2pkh: singleOutput(VirtualSizes.txP2pkhOutputSize),
     p2wpkh: singleOutput(VirtualSizes.txP2wpkhOutputSize),
-  }
+  };
 }
