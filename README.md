@@ -5,6 +5,11 @@ The package has two components:
 * `Codes`: BitGo-defined chain codes for categorizing unspents.
 * `Dimensions` class with methods to calculate bitcoin transaction sizes
 
+## Installation
+
+```
+npm install --save @bitgo/unspents
+```
 
 ## Chain Codes
 
@@ -80,3 +85,13 @@ Dimensions
   .plus(Dimensions.fromOutputOnChain(Codes.p2shP2wsh.internal).times(nOutputs))
   .getVSize();
 ```
+
+## Publishing new versions
+
+Publishing new versions should be done by running the publish script in `scripts/publish.sh`.
+
+It can be invoked with the name of the branch to release, and will default to the currently checked out branch if not given.
+
+It will perform validation of all prepublish conditions, run a dry-run publish, then, if successful, a real publish. After that is complete,
+the newly installed package will be downloaded and `require()`'d to ensure the package was published correctly.
+
