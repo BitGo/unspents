@@ -1,0 +1,191 @@
+---
+kind: pipeline
+name: audit
+
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+- name: build information
+  image: node:lts
+  commands:
+  - node --version
+  - npm --version
+
+- name: install
+  image: node:lts
+  commands:
+  - npm install
+
+- name: audit
+  image: node:lts
+  commands:
+  - npm audit
+
+---
+kind: pipeline
+name: lint
+
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+- name: build information
+  image: node:lts
+  commands:
+  - node --version
+  - npm --version
+
+- name: install
+  image: node:lts
+  commands:
+  - npm install
+
+- name: lint
+  image: node:lts
+  commands:
+  - npx tslint --project .
+
+---
+kind: pipeline
+name: unit tests (node:6)
+
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+- name: build information
+  image: node:6
+  commands:
+  - node --version
+  - npm --version
+
+- name: install
+  image: node:6
+  commands:
+  - npm install
+
+- name: unit tests
+  image: node:6
+  commands:
+  - npm run test
+
+---
+kind: pipeline
+name: unit tests (node:8)
+
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+- name: build information
+  image: node:8
+  commands:
+  - node --version
+  - npm --version
+
+- name: install
+  image: node:8
+  commands:
+  - npm install
+
+- name: unit tests
+  image: node:8
+  commands:
+  - npm run test
+
+---
+kind: pipeline
+name: unit tests (node:9)
+
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+- name: build information
+  image: node:9
+  commands:
+  - node --version
+  - npm --version
+
+- name: install
+  image: node:9
+  commands:
+  - npm install
+
+- name: unit tests
+  image: node:9
+  commands:
+  - npm run test
+
+---
+kind: pipeline
+name: unit tests (node:10)
+
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+- name: build information
+  image: node:10
+  commands:
+  - node --version
+  - npm --version
+
+- name: install
+  image: node:10
+  commands:
+  - npm install
+
+- name: unit tests
+  image: node:10
+  commands:
+  - npm run test
+
+---
+kind: pipeline
+name: unit tests (node:11)
+
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+- name: build information
+  image: node:11
+  commands:
+  - node --version
+  - npm --version
+
+- name: install
+  image: node:11
+  commands:
+  - npm install
+
+- name: unit tests
+  image: node:11
+  commands:
+  - npm run test
+
+---
+kind: pipeline
+name: size and timing (node:lts)
+
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+- name: slow-deps
+  image: node:lts
+  commands:
+  - npm install -g slow-deps
+  - slow-deps
+
+...
