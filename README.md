@@ -34,7 +34,7 @@ console.log(...Codes.p2shP2wsh.values); // 10, 11
 console.log(
   Codes.isExternal(Codes.p2shP2wsh.internal),
   Codes.isExternal(Codes.p2shP2wsh.external),
-  Codes.isP2shP2wshCodes.p2shP2wsh.internal),
+  Codes.isP2shP2wsh(Codes.p2shP2wsh.internal),
   Codes.isP2shP2wsh(Codes.p2shP2wsh.external),
 ); // false, true, true, true
 
@@ -95,3 +95,6 @@ It can be invoked with the name of the branch to release, and will default to th
 It will perform validation of all prepublish conditions, run a dry-run publish, then, if successful, a real publish. After that is complete,
 the newly installed package will be downloaded and `require()`'d to ensure the package was published correctly.
 
+## Continuous Integration
+
+`@bitgo/unspents` uses Drone for continuous integration, which is configured by the `.drone.yml` file in the project root. However, this file should not be modified by hand. All changes to the CI process should be done by modifying the `.drone.jsonnet` file, then running `npm run generate_drone` to rebuild the `.drone.yml` file.

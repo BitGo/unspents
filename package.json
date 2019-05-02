@@ -9,7 +9,8 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
-    "test": "mocha --require ts-node/register \"test/**/*.ts\""
+    "test": "mocha --require ts-node/register \"test/**/*.ts\"",
+    "generate_drone": "drone jsonnet --stream"
   },
   "repository": {
     "type": "git",
