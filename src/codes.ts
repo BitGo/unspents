@@ -2,7 +2,7 @@ import * as tcomb from 'tcomb';
 
 export type ChainCode = number;
 
-class ErrorInvalidCode extends Error {
+export class ErrorInvalidCode extends Error {
   constructor(code: ChainCode) {
     super(`invalid code ${code}`);
   }
@@ -18,7 +18,7 @@ export enum UnspentType {
 
 const UnspentTypeTcomb = tcomb.enums.of(Object.keys(UnspentType));
 
-enum Purpose {
+export enum Purpose {
   internal = 'internal',
   external = 'external',
 }
@@ -72,7 +72,7 @@ const throwIfUndefined = <T>(v: T | undefined): T => {
   return v;
 };
 
-class CodeGroup {
+export class CodeGroup {
   public values: ReadonlyArray<ChainCode>;
   constructor(values: Iterable<ChainCode>) {
     this.values = Object.freeze([...values]);
@@ -86,7 +86,7 @@ class CodeGroup {
   }
 }
 
-class CodesByPurpose extends CodeGroup {
+export class CodesByPurpose extends CodeGroup {
   public internal: ChainCode;
   public external: ChainCode;
 
@@ -107,7 +107,7 @@ class CodesByPurpose extends CodeGroup {
   }
 }
 
-class CodesByType extends CodeGroup {
+export class CodesByType extends CodeGroup {
   public p2sh: ChainCode;
   public p2shP2wsh: ChainCode;
   public p2wsh: ChainCode;
