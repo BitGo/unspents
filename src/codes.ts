@@ -143,6 +143,7 @@ export default Object.freeze({
   /* @deprecated: use ChainCodeTcomb */
   ChainType,
   ChainCodeTcomb: ChainType,
+  Purpose,
   PurposeTcomb,
   UnspentType,
   UnspentTypeTcomb,
