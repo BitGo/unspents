@@ -144,6 +144,7 @@ export default Object.freeze({
   ChainType,
   ChainCodeTcomb: ChainType,
   PurposeTcomb,
+  UnspentType,
   UnspentTypeTcomb,
   p2sh,
   p2shP2wsh,
