@@ -1,4 +1,4 @@
-import Codes from './codes';
-export { Codes };
+import Codes, * as CodesTypes from './codes';
+export { Codes, CodesTypes };
 
 export * from './dimensions';

@@ -1,5 +1,5 @@
 import should from 'should';
-import Codes, { UnspentType } from '../src/codes';
+import { Codes, CodesTypes } from '../src';
 
 describe('chain codes', function() {
 
@@ -22,14 +22,14 @@ describe('chain codes', function() {
   ];
 
   const supportedUnspentTypeList = [
-    UnspentType.p2sh,
-    UnspentType.p2shP2wsh,
-    UnspentType.p2wsh,
+    CodesTypes.UnspentType.p2sh,
+    CodesTypes.UnspentType.p2shP2wsh,
+    CodesTypes.UnspentType.p2wsh,
   ];
 
   const unsupportedUnspentTypeList = [
-    UnspentType.p2pkh,
-    UnspentType.p2wpkh,
+    CodesTypes.UnspentType.p2pkh,
+    CodesTypes.UnspentType.p2wpkh,
   ];
 
   it(`is immutable`, function() {
