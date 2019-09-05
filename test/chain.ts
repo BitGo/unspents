@@ -127,9 +127,8 @@ describe('chain codes', function() {
 
   it(`has chain type`, function() {
     Codes.all.should.matchEach(
-      (code) => (Codes.ChainType(code) === code) && Codes.ChainType.is(code),
+      (code) => (Codes.ChainCodeTcomb(code) === code) && Codes.ChainCodeTcomb.is(code),
     );
-    // @ts-ignore
-    invalidInputs.forEach((code) => should.throws(() => chain.ChainType(code)));
+    invalidInputs.forEach((code: any) => should.throws(() => Codes.ChainCodeTcomb(code)));
   });
 });
