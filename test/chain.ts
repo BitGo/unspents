@@ -1,5 +1,5 @@
 import should from 'should';
-import Codes, { UnspentType } from '../src/codes';
+import { Codes, CodesTypes } from '../src';
 
 describe('chain codes', function() {
 
@@ -22,14 +22,14 @@ describe('chain codes', function() {
   ];
 
   const supportedUnspentTypeList = [
-    UnspentType.p2sh,
-    UnspentType.p2shP2wsh,
-    UnspentType.p2wsh,
+    CodesTypes.UnspentType.p2sh,
+    CodesTypes.UnspentType.p2shP2wsh,
+    CodesTypes.UnspentType.p2wsh,
   ];
 
   const unsupportedUnspentTypeList = [
-    UnspentType.p2pkh,
-    UnspentType.p2wpkh,
+    CodesTypes.UnspentType.p2pkh,
+    CodesTypes.UnspentType.p2wpkh,
   ];
 
   it(`is immutable`, function() {
@@ -127,9 +127,8 @@ describe('chain codes', function() {
 
   it(`has chain type`, function() {
     Codes.all.should.matchEach(
-      (code) => (Codes.ChainType(code) === code) && Codes.ChainType.is(code),
+      (code) => (Codes.ChainCodeTcomb(code) === code) && Codes.ChainCodeTcomb.is(code),
     );
-    // @ts-ignore
-    invalidInputs.forEach((code) => should.throws(() => chain.ChainType(code)));
+    invalidInputs.forEach((code: any) => should.throws(() => Codes.ChainCodeTcomb(code)));
   });
 });
