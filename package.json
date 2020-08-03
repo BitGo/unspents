@@ -43,7 +43,7 @@
     "typescript": "~3.3.4000"
   },
   "dependencies": {
-    "lodash": "~4.17.14",
+    "lodash": "~4.17.19",
     "tcomb": "~3.2.29"
   }
 }
