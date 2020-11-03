@@ -65,7 +65,7 @@ new Dimensions({
 });
 
 // calculate from unspents that have `chain` property (see Chain Codes)
-Dimensions.fromUnspents(unspent[0]);
+Dimensions.fromUnspent(unspent[0]);
 Dimensions.fromUnspents(unspents);
 
 // Signed inputs work too
@@ -73,7 +73,7 @@ Dimensions.fromInput(inputs[0]);
 Dimensions.fromInputs(inputs);
 
 // Transaction outputs
-Dimensions.fromOutputs(outputs[0]);
+Dimensions.fromOutput(outputs[0]);
 Dimensions.fromOutputs(outputs);
 Dimensions.fromOutputOnChain(Codes.p2sh.internal);
 Dimensions.fromOutputScriptLength(31);
