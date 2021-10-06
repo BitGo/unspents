@@ -16,8 +16,8 @@ const UnspentTypeScript2of3: {
 } = makeEnum('p2sh', 'p2shP2wsh', 'p2wsh');
 
 const UnspentTypePubKeyHash: {
-  p2pkh: string;
-  p2wpkh: string;
+  p2pkh: 'p2pkh';
+  p2wpkh: 'p2wpkh';
 } = makeEnum('p2pkh', 'p2wpkh');
 
 export type TestUnspentType = string | UnspentTypeOpReturn;

@@ -267,7 +267,7 @@ export const Dimensions = t.struct<IDimensions>({
   nP2shP2wshInputs: PositiveInteger,
   nP2wshInputs: PositiveInteger,
   outputs: OutputDimensions,
-}, { name: 'Dimensions' }) as unknown as IDimensionsStruct;
+}, { name: 'Dimensions' }) as IDimensionsStruct;
 
 const zero = Object.freeze(Dimensions({
   nP2shInputs: 0,
@@ -330,7 +330,7 @@ const mapDimensions = (dim: IDimensions, func: MapFunc) => {
   return Dimensions(
     _.fromPairs(_.map(Dimensions.meta.props, (prop, key) =>
       [key, func((dim as any)[key], key as keyof IDimensions, prop as DimPropertyConstructor)],
-    )) as IDimensions,
+    )) as any,
   );
 };
 

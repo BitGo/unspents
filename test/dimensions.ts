@@ -153,7 +153,7 @@ describe('Dimensions from unspent types', function() {
 
     [...Object.keys(UnspentTypeScript2of3), ...Object.keys(UnspentTypePubKeyHash)].forEach((type) =>
       getOutputDimensionsForUnspentType(type)
-      .outputs.size.should.eql(expectedSizes.get(type)),
+      .outputs.size.should.eql(expectedSizes.get(type as any)),
     );
   });
 });

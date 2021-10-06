@@ -1,7 +1,7 @@
 import should from 'should';
 
-// @ts-ignore
-import * as HDKey from 'hdkey';
+import * as bitcoin from '@bitgo/utxo-lib';
+import * as bip32 from 'bip32';
 
 import { Dimensions } from '../../src';
 
@@ -70,7 +70,7 @@ describe(`Dimensions for transaction combinations`, function() {
     const expectedInputDims = Dimensions.sum(...inputTypeCombo.map(getInputDimensionsForUnspentType));
     const expectedOutputDims = Dimensions.sum(...outputTypeCombo.map(getOutputDimensionsForUnspentType));
 
-    const keys = [1, 2, 3].map((v) => HDKey.fromMasterSeed(Buffer.from(`test/2/${v}`)));
+    const keys = [1, 2, 3].map((v) => bip32.fromSeed(Buffer.alloc(16, `test/2/${v}`), bitcoin.networks.bitcoin));
 
     testDimensionsFromTx(
       new TxCombo(
