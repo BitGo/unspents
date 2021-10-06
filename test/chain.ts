@@ -7,24 +7,28 @@ describe('chain codes', function() {
     Codes.external.p2sh,
     Codes.external.p2shP2wsh,
     Codes.external.p2wsh,
+    Codes.external.p2tr,
   ];
 
   const internalList = [
     Codes.internal.p2sh,
     Codes.internal.p2shP2wsh,
     Codes.internal.p2wsh,
+    Codes.internal.p2tr,
   ];
 
   const purposeByScriptTypeList = [
     Codes.p2sh,
     Codes.p2shP2wsh,
     Codes.p2wsh,
+    Codes.p2tr,
   ];
 
   const supportedUnspentTypeList = [
     CodesTypes.UnspentType.p2sh,
     CodesTypes.UnspentType.p2shP2wsh,
     CodesTypes.UnspentType.p2wsh,
+    CodesTypes.UnspentType.p2tr,
   ];
 
   const unsupportedUnspentTypeList = [
@@ -42,7 +46,7 @@ describe('chain codes', function() {
     should.throws(() => { Codes.internal.values.push(-1); }, TypeError);
     // @ts-ignore
     should.throws(() => { Codes.internal.values = []; }, TypeError);
-    Codes.internal.values.should.eql([1, 11, 21]);
+    Codes.internal.values.should.eql([1, 11, 21, 31]);
 
     // @ts-ignore
     should.throws(() => { Codes.all = []; });
@@ -54,8 +58,9 @@ describe('chain codes', function() {
       Codes.p2sh.external,
       Codes.p2shP2wsh.external,
       Codes.p2wsh.external,
+      Codes.p2tr.external,
     ]);
-    externalList.should.eql([0, 10, 20]);
+    externalList.should.eql([0, 10, 20, 30]);
     externalList.should.eql([...Codes.external.values]);
 
     Codes.all.should.eql([...externalList, ...internalList]);
@@ -63,8 +68,9 @@ describe('chain codes', function() {
       Codes.p2sh.internal,
       Codes.p2shP2wsh.internal,
       Codes.p2wsh.internal,
+      Codes.p2tr.internal,
     ]);
-    internalList.should.eql([1, 11, 21]);
+    internalList.should.eql([1, 11, 21, 31]);
     internalList.should.eql([...Codes.internal.values]);
   });
 
@@ -78,11 +84,12 @@ describe('chain codes', function() {
     Codes.p2sh.values.should.matchEach(Codes.isP2sh);
     Codes.p2shP2wsh.values.should.matchEach(Codes.isP2shP2wsh);
     Codes.p2wsh.values.should.matchEach(Codes.isP2wsh);
+    Codes.p2tr.values.should.matchEach(Codes.isP2tr);
 
     // every code has exactly one address type
     Codes.all.should.matchEach(
       (code) => 1 ===
-        [Codes.isP2sh(code), Codes.isP2wsh(code), Codes.isP2shP2wsh(code)]
+        [Codes.isP2sh(code), Codes.isP2wsh(code), Codes.isP2shP2wsh(code), Codes.isP2tr(code)]
           .reduce((sum, v) => sum + Number(v), 0),
     );
 
@@ -98,6 +105,7 @@ describe('chain codes', function() {
       Codes.isP2sh,
       Codes.isP2shP2wsh,
       Codes.isP2wsh,
+      Codes.isP2tr,
       Codes.typeForCode,
     ].forEach(
       (func) =>

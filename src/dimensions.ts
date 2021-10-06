@@ -107,6 +107,18 @@ export const VirtualSizes = Object.freeze({
   // For N inputs, the overestimation will be below N vbytes for all transactions.
   txP2wshInputSize: 105,
 
+  // TODO: Calculate script path spend sizes for p2tr inputs
+  // Keypath spend size is calculated by adding:
+  //   - 36 vbyte outpoint
+  //   - 1 vbyte scriptSig
+  //   - 4 vbyte nSequence
+  //   - 1 WU witness item count
+  //   - 1 WU witness item size
+  //   - 64 WU schnorr signature
+  // 32+4+1+4+(1+1+64)/4 = 57.5 vB - rounded up to 58
+  // See: https://murchandamus.medium.com/2-of-3-multisig-inputs-using-pay-to-taproot-d5faf2312ba3
+  txP2trKeypathInputSize: 58,
+
   //
   // Output sizes
   //
@@ -128,6 +140,8 @@ export const VirtualSizes = Object.freeze({
   txP2shP2wshOutputSize: 32,
   // https://github.com/bitcoinjs/bitcoinjs-lib/blob/v4.0.2/src/templates/witnessscripthash/output.js#L9
   txP2wshOutputSize: 43,
+  // OP_1 OP_PUSH32 <schnorr_public_key>
+  txP2trOutputSize: 43,
   // https://github.com/bitcoinjs/bitcoinjs-lib/blob/v4.0.2/src/templates/pubkeyhash/output.js#L9
   txP2pkhOutputSize: 34,
   // https://github.com/bitcoinjs/bitcoinjs-lib/blob/v4.0.2/src/templates/witnesspubkeyhash/output.js#L9
@@ -202,6 +216,7 @@ export interface IBaseDimensions {
   nP2shInputs: number;
   nP2shP2wshInputs: number;
   nP2wshInputs: number;
+  nP2trKeypathInputs: number;
   outputs: IOutputDimensions;
 }
 
@@ -219,17 +234,29 @@ export interface IDimensions extends IBaseDimensions {
   getVSize(): number;
 }
 
+interface IFromInputParams {
+  // In cases where the input type is ambiguous, we must provide a hint about spend script type.
+  assumeUnsigned?: symbol;
+}
+
+export interface IFromUnspentParams {
+  // The p2tr output type has multiple spend options and thus different weights per spend path.
+  p2trSpendType: 'keypath';
+}
+
 export interface IDimensionsStruct extends t.Struct<IDimensions> {
 
   (v: IBaseDimensions): IDimensions;
   ASSUME_P2SH: symbol;
   ASSUME_P2SH_P2WSH: symbol;
   ASSUME_P2WSH: symbol;
+  ASSUME_P2TR_KEYPATH: symbol;
 
   SingleOutput: {
     p2sh: IDimensions,
     p2shP2wsh: IDimensions,
     p2wsh: IDimensions,
+    p2tr: IDimensions,
     p2pkh: IDimensions,
     p2wpkh: IDimensions,
   };
@@ -241,14 +268,14 @@ export interface IDimensionsStruct extends t.Struct<IDimensions> {
   getOutputScriptLengthForChain(chain: ChainCode): number;
   getVSizeForOutputWithScriptLength(length: number): number;
 
-  fromInput(input: utxolib.TxInput, params?: { assumeUnsigned?: symbol }): IDimensions;
-  fromInputs(input: utxolib.TxInput[], params?: { assumeUnsigned?: symbol }): IDimensions;
+  fromInput(input: utxolib.TxInput, params?: IFromInputParams): IDimensions;
+  fromInputs(input: utxolib.TxInput[], params?: IFromInputParams): IDimensions;
 
   fromOutputScriptLength(scriptLength: number): IDimensions;
   fromOutput(output: { script: Buffer }): IDimensions;
   fromOutputs(outputs: Array<{ script: Buffer }>): IDimensions;
   fromOutputOnChain(chain: ChainCode): IDimensions;
-  fromUnspent(unspent: { chain: ChainCode }): IDimensions;
+  fromUnspent(unspent: { chain: ChainCode }, params?: IFromUnspentParams): IDimensions;
   fromUnspents(unspents: Array<{ chain: ChainCode }>): IDimensions;
 
   fromTransaction(tx: utxolib.Transaction, params?: { assumeUnsigned?: symbol } ): IDimensions;
@@ -267,6 +294,7 @@ export const Dimensions = t.struct<IDimensions>({
   nP2shInputs: PositiveInteger,
   nP2shP2wshInputs: PositiveInteger,
   nP2wshInputs: PositiveInteger,
+  nP2trKeypathInputs: PositiveInteger,
   outputs: OutputDimensions,
 }, { name: 'Dimensions' }) as IDimensionsStruct;
 
@@ -274,6 +302,7 @@ const zero = Object.freeze(Dimensions({
   nP2shInputs: 0,
   nP2shP2wshInputs: 0,
   nP2wshInputs: 0,
+  nP2trKeypathInputs: 0,
   outputs: { count: 0, size: 0 },
 })) as IDimensions;
 
@@ -287,10 +316,10 @@ Dimensions.zero = function(): IDimensions {
 
 Object.defineProperty(Dimensions.prototype, 'nInputs', {
   /**
-   * @return Number of total inputs (p2sh + p2shP2wsh + p2wsh)
+   * @return Number of total inputs (p2sh + p2shP2wsh + p2wsh + p2tr)
    */
   get() {
-    return this.nP2shInputs + this.nP2shP2wshInputs + this.nP2wshInputs;
+    return this.nP2shInputs + this.nP2shP2wshInputs + this.nP2wshInputs + this.nP2trKeypathInputs;
   },
 
   set(v) {
@@ -338,6 +367,7 @@ const mapDimensions = (dim: IDimensions, func: MapFunc) => {
 Dimensions.ASSUME_P2SH = Symbol('assume-p2sh');
 Dimensions.ASSUME_P2SH_P2WSH = Symbol('assume-p2sh-p2wsh');
 Dimensions.ASSUME_P2WSH = Symbol('assume-p2wsh');
+Dimensions.ASSUME_P2TR_KEYPATH = Symbol('assume-p2tr-keypath');
 
 /**
  * @param args - Dimensions (can be partially defined)
@@ -355,7 +385,7 @@ Dimensions.getOutputScriptLengthForChain = function(chain: ChainCode): number {
   if (!Codes.isValid(chain)) {
     throw new TypeError('invalid chain code');
   }
-  return Codes.isP2wsh(chain) ? 34 : 23;
+  return Codes.isP2wsh(chain) || Codes.isP2tr(chain) ? 34 : 23;
 };
 
 /**
@@ -370,7 +400,7 @@ Dimensions.getVSizeForOutputWithScriptLength = function(scriptLength: number): n
 };
 
 /**
- * @param unspent - the unspent to count
+ * @param input - the transaction input to count
  * @param params
  *        [param.assumeUnsigned] - default type for unsigned input
  */
@@ -378,6 +408,7 @@ Dimensions.fromInput = function(input: utxolib.TxInput, params = {}) {
   const p2shInput = Dimensions.sum({ nP2shInputs: 1 });
   const p2shP2wshInput = Dimensions.sum({ nP2shP2wshInputs: 1 });
   const p2wshInput = Dimensions.sum({ nP2wshInputs: 1 });
+  const p2trKeypathInput = Dimensions.sum({ nP2trKeypathInputs: 1 });
 
   if (input.script?.length || input.witness?.length) {
     const parsed = utxolib.bitgo.parseSignatureScript2Of3(input);
@@ -386,8 +417,6 @@ Dimensions.fromInput = function(input: utxolib.TxInput, params = {}) {
         return parsed.isSegwitInput ? p2shP2wshInput : p2shInput;
       case 'witnessscripthash':
         return p2wshInput;
-      default:
-        throw new Error(`invalid input ${parsed.inputClassification}`);
     }
   }
 
@@ -401,6 +430,8 @@ Dimensions.fromInput = function(input: utxolib.TxInput, params = {}) {
       return p2shP2wshInput;
     case Dimensions.ASSUME_P2WSH:
       return p2wshInput;
+    case Dimensions.ASSUME_P2TR_KEYPATH:
+      return p2trKeypathInput;
     default:
       throw new TypeError(`illegal value for assumeUnsigned: ${String(assumeUnsigned)}`);
   }
@@ -469,11 +500,12 @@ Dimensions.fromOutputOnChain = function(chain) {
 
 /**
  * Return dimensions of an unspent according to `chain` parameter
- * @param params.chain - Chain code as defined by utxo.chain
+ * @param chain - Chain code as defined by utxo.chain
+ * @param params - Hint for unspents with variable input sizes (p2tr).
  * @return {Dimensions} of the unspent
  * @throws if the chain code is invalid or unsupported
  */
-Dimensions.fromUnspent = ({ chain }) => {
+Dimensions.fromUnspent = ({ chain }, params: IFromUnspentParams = { p2trSpendType: 'keypath' }) => {
   if (!Codes.isValid(chain)) {
     throw new TypeError('invalid chain code');
   }
@@ -490,6 +522,15 @@ Dimensions.fromUnspent = ({ chain }) => {
     return Dimensions.sum({ nP2wshInputs: 1 });
   }
 
+  if (Codes.isP2tr(chain)) {
+    switch (params.p2trSpendType) {
+      case 'keypath':
+        return Dimensions.sum({ nP2trKeypathInputs: 1 });
+      default:
+        throw new Error(`unsupported p2trSpendType: ${params.p2trSpendType}`);
+    }
+  }
+
   throw new Error(`unsupported chain ${chain}`);
 };
 
@@ -502,7 +543,7 @@ Dimensions.fromUnspents = function(unspents) {
     throw new TypeError(`unspents must be array`);
   }
   // Convert the individual unspents into dimensions and sum them up
-  return Dimensions.sum(...unspents.map(Dimensions.fromUnspent));
+  return Dimensions.sum(...unspents.map((u) => Dimensions.fromUnspent(u)));
 };
 
 /**
@@ -582,14 +623,14 @@ Dimensions.prototype.times = function(factor: number) {
  * @deprecated use `dimension.nInputs` instead
  */
 Dimensions.prototype.getNInputs = function() {
-  return this.nP2shInputs + this.nP2shP2wshInputs + this.nP2wshInputs;
+  return this.nP2shInputs + this.nP2shP2wshInputs + this.nP2wshInputs + this.nP2trKeypathInputs;
 };
 
 /**
  * @returns {boolean} true iff dimensions have one or more (p2sh)p2wsh inputs
  */
 Dimensions.prototype.isSegwit = function() {
-  return (this.nP2wshInputs + this.nP2shP2wshInputs) > 0;
+  return (this.nP2wshInputs + this.nP2shP2wshInputs + this.nP2trKeypathInputs) > 0;
 };
 
 /**
@@ -604,22 +645,25 @@ Dimensions.prototype.getOverheadVSize = function() {
 /**
  * @returns {number} vsize of inputs, without transaction overhead
  */
-Dimensions.prototype.getInputsVSize = function() {
+Dimensions.prototype.getInputsVSize = function(this: IBaseDimensions) {
   const {
     txP2shInputSize,
     txP2shP2wshInputSize,
     txP2wshInputSize,
+    txP2trKeypathInputSize,
   } = VirtualSizes;
 
   const {
     nP2shInputs,
     nP2shP2wshInputs,
     nP2wshInputs,
+    nP2trKeypathInputs,
   } = this;
 
   return nP2shInputs * txP2shInputSize +
     nP2shP2wshInputs * txP2shP2wshInputSize +
-    nP2wshInputs * txP2wshInputSize;
+    nP2wshInputs * txP2wshInputSize +
+    nP2trKeypathInputs * txP2trKeypathInputSize;
 };
 
 /**
@@ -646,6 +690,7 @@ Dimensions.prototype.getVSize = function() {
     p2sh: singleOutput(VirtualSizes.txP2shOutputSize),
     p2shP2wsh: singleOutput(VirtualSizes.txP2shP2wshOutputSize),
     p2wsh: singleOutput(VirtualSizes.txP2wshOutputSize),
+    p2tr: singleOutput(VirtualSizes.txP2trOutputSize),
 
     p2pkh: singleOutput(VirtualSizes.txP2pkhOutputSize),
     p2wpkh: singleOutput(VirtualSizes.txP2wpkhOutputSize),

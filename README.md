@@ -16,7 +16,7 @@ npm install --save @bitgo/unspents
 Every unspent has two attributes 
 
 * purpose: `internal` or `external` (change or non-change).
-* scriptType: `p2sh`, `p2shP2wsh` or `p2wsh`.
+* scriptType: `p2sh`, `p2shP2wsh`, `p2wsh`, or `p2tr`.
 
 We define a chain code for every combination of these attributes, which is accessible as
 `unspents.Codes[purpose][scriptType]` or `unspents.Codes[scriptType][purpose]`.

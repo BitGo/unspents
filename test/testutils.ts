@@ -13,7 +13,8 @@ const UnspentTypeScript2of3: {
   p2sh: string;
   p2shP2wsh: string;
   p2wsh: string;
-} = makeEnum('p2sh', 'p2shP2wsh', 'p2wsh');
+  p2tr: string;
+} = makeEnum('p2sh', 'p2shP2wsh', 'p2wsh', 'p2tr');
 
 const UnspentTypePubKeyHash: {
   p2pkh: 'p2pkh';
@@ -43,6 +44,8 @@ const getInputDimensionsForUnspentType = (unspentType: TestUnspentType) => {
       return utxo.Dimensions.sum({ nP2shP2wshInputs: 1 });
     case UnspentTypeScript2of3.p2wsh:
       return utxo.Dimensions.sum({ nP2wshInputs: 1 });
+      case UnspentTypeScript2of3.p2tr:
+        return utxo.Dimensions.sum({ nP2trKeypathInputs: 1 });
   }
   throw new Error(`no input dimensions for ${unspentType}`);
 };
@@ -54,6 +57,8 @@ const getOutputDimensionsForUnspentType = (unspentType: TestUnspentType) => {
     case UnspentTypeScript2of3.p2shP2wsh:
       return utxo.Dimensions.fromOutputScriptLength(23);
     case UnspentTypeScript2of3.p2wsh:
+      return utxo.Dimensions.fromOutputScriptLength(34);
+    case UnspentTypeScript2of3.p2tr:
       return utxo.Dimensions.fromOutputScriptLength(34);
     case UnspentTypePubKeyHash.p2pkh:
       return utxo.Dimensions.fromOutputScriptLength(25);
