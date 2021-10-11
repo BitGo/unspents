@@ -1,3 +1,4 @@
+import * as utxolib from '@bitgo/utxo-lib';
 import * as _ from 'lodash';
 import * as t from 'tcomb';
 
@@ -240,8 +241,8 @@ export interface IDimensionsStruct extends t.Struct<IDimensions> {
   getOutputScriptLengthForChain(chain: ChainCode): number;
   getVSizeForOutputWithScriptLength(length: number): number;
 
-  fromInput(input: IOutput, params?: { assumeUnsigned?: symbol }): IDimensions;
-  fromInputs(input: IOutput[], params?: { assumeUnsigned?: symbol }): IDimensions;
+  fromInput(input: utxolib.TxInput, params?: { assumeUnsigned?: symbol }): IDimensions;
+  fromInputs(input: utxolib.TxInput[], params?: { assumeUnsigned?: symbol }): IDimensions;
 
   fromOutputScriptLength(scriptLength: number): IDimensions;
   fromOutput(output: { script: Buffer }): IDimensions;
@@ -250,7 +251,7 @@ export interface IDimensionsStruct extends t.Struct<IDimensions> {
   fromUnspent(unspent: { chain: ChainCode }): IDimensions;
   fromUnspents(unspents: Array<{ chain: ChainCode }>): IDimensions;
 
-  fromTransaction(tx: IBitcoinTx, params?: { assumeUnsigned?: symbol } ): IDimensions;
+  fromTransaction(tx: utxolib.Transaction, params?: { assumeUnsigned?: symbol } ): IDimensions;
 }
 
 /**
@@ -373,32 +374,36 @@ Dimensions.getVSizeForOutputWithScriptLength = function(scriptLength: number): n
  * @param params
  *        [param.assumeUnsigned] - default type for unsigned input
  */
-Dimensions.fromInput = function({ index, script, witness }: IOutput, params = {}) {
+Dimensions.fromInput = function(input: utxolib.TxInput, params = {}) {
   const p2shInput = Dimensions.sum({ nP2shInputs: 1 });
   const p2shP2wshInput = Dimensions.sum({ nP2shP2wshInputs: 1 });
   const p2wshInput = Dimensions.sum({ nP2wshInputs: 1 });
 
-  if (!script.length) {
-    if (witness.length > 0) {
-      return p2wshInput;
+  if (input.script?.length || input.witness?.length) {
+    const parsed = utxolib.bitgo.parseSignatureScript2Of3(input);
+    switch (parsed.inputClassification) {
+      case 'scripthash':
+        return parsed.isSegwitInput ? p2shP2wshInput : p2shInput;
+      case 'witnessscripthash':
+        return p2wshInput;
+      default:
+        throw new Error(`invalid input ${parsed.inputClassification}`);
     }
-    const { assumeUnsigned } = params;
-    if (!assumeUnsigned) {
-      throw new Error(`illegal input ${index}: empty script`);
-    }
-    if (assumeUnsigned === Dimensions.ASSUME_P2SH) {
-      return p2shInput;
-    }
-    if (assumeUnsigned === Dimensions.ASSUME_P2SH_P2WSH) {
-      return p2shP2wshInput;
-    }
-    if (assumeUnsigned === Dimensions.ASSUME_P2WSH) {
-      return p2wshInput;
-    }
-    throw new TypeError(`illegal value for assumeUnsigned: ${String(assumeUnsigned)}`);
   }
 
-  return witness.length ? p2shP2wshInput : p2shInput;
+  const { assumeUnsigned } = params;
+  switch (assumeUnsigned) {
+    case undefined:
+      throw new Error(`illegal input ${input.index}: empty script and assumeUnsigned not set`);
+    case Dimensions.ASSUME_P2SH:
+      return p2shInput;
+    case Dimensions.ASSUME_P2SH_P2WSH:
+      return p2shP2wshInput;
+    case Dimensions.ASSUME_P2WSH:
+      return p2wshInput;
+    default:
+      throw new TypeError(`illegal value for assumeUnsigned: ${String(assumeUnsigned)}`);
+  }
 };
 
 /**
