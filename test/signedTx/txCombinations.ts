@@ -1,7 +1,7 @@
 import should from 'should';
 
-// @ts-ignore
-import * as HDKey from 'hdkey';
+import * as bitcoin from '@bitgo/utxo-lib';
+import * as bip32 from 'bip32';
 
 import { Dimensions } from '../../src';
 
@@ -60,7 +60,8 @@ const testDimensionsFromTx = (txCombo: any) => {
 
 describe(`Dimensions for transaction combinations`, function() {
   const params = {
-    inputTypes: Object.keys(UnspentTypeScript2of3),
+    inputTypes: Object.keys(UnspentTypeScript2of3)
+      .filter((scriptType) => scriptType !== 'p2tr'), // TODO: remove when p2tr signing is supported,
     maxNInputs: 3,
     outputTypes: [...Object.keys(UnspentTypeScript2of3), ...Object.keys(UnspentTypePubKeyHash)],
     maxNOutputs: 3,
@@ -70,7 +71,7 @@ describe(`Dimensions for transaction combinations`, function() {
     const expectedInputDims = Dimensions.sum(...inputTypeCombo.map(getInputDimensionsForUnspentType));
     const expectedOutputDims = Dimensions.sum(...outputTypeCombo.map(getOutputDimensionsForUnspentType));
 
-    const keys = [1, 2, 3].map((v) => HDKey.fromMasterSeed(Buffer.from(`test/2/${v}`)));
+    const keys = [1, 2, 3].map((v) => bip32.fromSeed(Buffer.alloc(16, `test/2/${v}`), bitcoin.networks.bitcoin));
 
     testDimensionsFromTx(
       new TxCombo(

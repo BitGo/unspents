@@ -18,6 +18,7 @@ describe(`Dimension estimation errors`, function() {
   interface IInputTypeAndCount { inputType: TestUnspentType; count: number; }
 
   const inputTypes: IInputTypeAndCount[] = Object.keys(UnspentTypeScript2of3)
+    .filter((scriptType) => scriptType !== 'p2tr') // TODO: remove when p2tr signing is supported
     .reduce((all: IInputTypeAndCount[], inputType) => [
       ...all,
       { inputType, count: 1 },
@@ -40,8 +41,8 @@ describe(`Dimension estimation errors`, function() {
       case UnspentTypeScript2of3.p2sh:
         return [0, 5 * inputCount];
       case UnspentTypeScript2of3.p2shP2wsh:
-        return [0, inputCount];
       case UnspentTypeScript2of3.p2wsh:
+      case UnspentTypeScript2of3.p2tr:
         return [0, inputCount];
       default:
         throw new Error('illegal inputType ' + inputType);

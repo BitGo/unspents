@@ -14,6 +14,7 @@ export enum UnspentType {
   p2shP2wsh = 'p2shP2wsh',
   p2wpkh = 'p2wpkh',
   p2wsh = 'p2wsh',
+  p2tr = 'p2tr',
 }
 
 const UnspentTypeTcomb = tcomb.enums.of(Object.keys(UnspentType));
@@ -36,10 +37,12 @@ const codeList: ReadonlyArray<Readonly<ICode>> = Object.freeze((
     [0, UnspentType.p2sh, Purpose.external],
     [10, UnspentType.p2shP2wsh, Purpose.external],
     [20, UnspentType.p2wsh, Purpose.external],
+    [30, UnspentType.p2tr, Purpose.external],
 
     [1, UnspentType.p2sh, Purpose.internal],
     [11, UnspentType.p2shP2wsh, Purpose.internal],
     [21, UnspentType.p2wsh, Purpose.internal],
+    [31, UnspentType.p2tr, Purpose.internal],
   ] as Array<[ChainCode, UnspentType, Purpose]>
 ).map(([id, type, purpose]) => Object.freeze({ id, type, purpose })));
 
@@ -111,6 +114,7 @@ export class CodesByType extends CodeGroup {
   public p2sh: ChainCode;
   public p2shP2wsh: ChainCode;
   public p2wsh: ChainCode;
+  public p2tr: ChainCode;
 
   constructor(p: Purpose) {
     const codeMap: Map<UnspentType, ChainCode> = new Map(
@@ -118,8 +122,8 @@ export class CodesByType extends CodeGroup {
         .filter(({ purpose }) => purpose === p)
         .map(({ type, id }): [UnspentType, ChainCode] => [type, id]),
     );
-    if (codeMap.size !== 3) {
-      throw new Error(`unexpected result`);
+    if (codeMap.size !== 4) {
+      throw new Error(`unexpected number of codes`);
     }
 
     super(codeMap.values());
@@ -127,6 +131,7 @@ export class CodesByType extends CodeGroup {
     this.p2sh = throwIfUndefined(codeMap.get(UnspentType.p2sh));
     this.p2shP2wsh = throwIfUndefined(codeMap.get(UnspentType.p2shP2wsh));
     this.p2wsh = throwIfUndefined(codeMap.get(UnspentType.p2wsh));
+    this.p2tr = throwIfUndefined(codeMap.get(UnspentType.p2tr));
   }
 }
 
@@ -135,6 +140,7 @@ const boundHas = (instance: CodeGroup) => instance.has.bind(instance);
 const p2sh = Object.freeze(new CodesByPurpose(UnspentType.p2sh));
 const p2shP2wsh = Object.freeze(new CodesByPurpose(UnspentType.p2shP2wsh));
 const p2wsh = Object.freeze(new CodesByPurpose(UnspentType.p2wsh));
+const p2tr = Object.freeze(new CodesByPurpose(UnspentType.p2tr));
 const external = Object.freeze(new CodesByType(Purpose.external));
 const internal = Object.freeze(new CodesByType(Purpose.internal));
 const all = Object.freeze(codeList.map(({ id }) => id));
@@ -148,12 +154,14 @@ export default Object.freeze({
   p2sh,
   p2shP2wsh,
   p2wsh,
+  p2tr,
   external,
   internal,
   all,
   isP2sh: boundHas(p2sh),
   isP2shP2wsh: boundHas(p2shP2wsh),
   isP2wsh: boundHas(p2wsh),
+  isP2tr: boundHas(p2tr),
   isExternal: boundHas(external),
   isInternal: boundHas(internal),
   isValid,

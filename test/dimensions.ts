@@ -35,6 +35,7 @@ describe('Dimensions Arithmetic', function() {
       nP2shInputs: 1,
       nP2shP2wshInputs: 0,
       nP2wshInputs: 0,
+      nP2trKeypathInputs: 0,
       outputs: { size: 0, count: 0 },
     }));
 
@@ -42,6 +43,7 @@ describe('Dimensions Arithmetic', function() {
       { nP2shInputs: 1 },
       { nP2shP2wshInputs: 2 },
       { nP2wshInputs: 3 },
+      { nP2trKeypathInputs: 4 },
       { outputs: { size: 23, count: 1 } },
       { outputs: { size: 44, count: 2 } },
       { outputs: { size: 0, count: 0 } },
@@ -63,6 +65,7 @@ describe('Dimensions Arithmetic', function() {
       nP2shInputs: 1,
       nP2shP2wshInputs: 2,
       nP2wshInputs: 3,
+      nP2trKeypathInputs: 4,
       outputs: { size: 67, count: 3 },
     }));
 
@@ -98,12 +101,14 @@ describe('Dimensions Arithmetic', function() {
       nP2shInputs: 1,
       nP2shP2wshInputs: 2,
       nP2wshInputs: 3,
+      nP2trKeypathInputs: 4,
       outputs: { count: 1, size: 22 },
     }).times(3).should.eql(
       Dimensions({
         nP2shInputs: 3,
         nP2shP2wshInputs: 6,
         nP2wshInputs: 9,
+        nP2trKeypathInputs: 12,
         outputs: { count: 3, size: 66 },
       }),
     );
@@ -127,6 +132,11 @@ describe('Dimensions from unspent types', function() {
         .should.eql(Dimensions.sum({ nP2wshInputs: 1 })),
     );
 
+    Codes.p2tr.values.forEach((chain) =>
+      Dimensions.fromUnspent({ chain })
+        .should.eql(Dimensions.sum({ nP2trKeypathInputs: 1 })),
+    );
+
     Dimensions.fromUnspents([
       { chain: Codes.p2sh.internal },
       { chain: Codes.p2sh.external },
@@ -134,10 +144,13 @@ describe('Dimensions from unspent types', function() {
       { chain: Codes.p2shP2wsh.external },
       { chain: Codes.p2wsh.internal },
       { chain: Codes.p2wsh.external },
+      { chain: Codes.p2tr.internal },
+      { chain: Codes.p2tr.external },
     ]).should.eql(Dimensions({
       nP2shP2wshInputs: 2,
       nP2shInputs: 2,
       nP2wshInputs: 2,
+      nP2trKeypathInputs: 2,
       outputs: { count: 0, size: 0 },
     }));
   });
@@ -147,13 +160,16 @@ describe('Dimensions from unspent types', function() {
       [UnspentTypeScript2of3.p2sh, VirtualSizes.txP2shOutputSize],
       [UnspentTypeScript2of3.p2shP2wsh, VirtualSizes.txP2shP2wshOutputSize],
       [UnspentTypeScript2of3.p2wsh, VirtualSizes.txP2wshOutputSize],
+      [UnspentTypeScript2of3.p2tr, VirtualSizes.txP2trOutputSize],
       [UnspentTypePubKeyHash.p2pkh, VirtualSizes.txP2pkhOutputSize],
       [UnspentTypePubKeyHash.p2wpkh, VirtualSizes.txP2wpkhOutputSize],
     ]);
 
-    [...Object.keys(UnspentTypeScript2of3), ...Object.keys(UnspentTypePubKeyHash)].forEach((type) =>
+    [...Object.keys(UnspentTypeScript2of3)
+      .filter((scriptType) => scriptType !== 'p2tr'), // TODO: remove when p2tr signing is supported,
+      ...Object.keys(UnspentTypePubKeyHash)].forEach((type) =>
       getOutputDimensionsForUnspentType(type)
-      .outputs.size.should.eql(expectedSizes.get(type)),
+      .outputs.size.should.eql(expectedSizes.get(type as any)),
     );
   });
 });
@@ -164,25 +180,31 @@ describe('Dimensions estimates', function() {
       nP2shInputs: number,
       nP2shP2wshInputs: number,
       nP2wshInputs: number,
+      nP2trKeypathInputs: number,
       nOutputs: number,
     ): IDimensions => Dimensions.sum(
       {
         nP2shInputs,
         nP2shP2wshInputs,
         nP2wshInputs,
+        nP2trKeypathInputs,
       },
       getOutputDimensionsForUnspentType(UnspentTypePubKeyHash.p2pkh).times(nOutputs),
     );
 
     [
-      [dim(1, 0, 0, 1), [false, 10, 297, 34, 341]],
-      [dim(0, 1, 0, 1), [true, 11, 140, 34, 185]],
-      [dim(0, 0, 1, 1), [true, 11, 105, 34, 150]],
-      [dim(2, 0, 0, 1), [false, 10, 594, 34, 638]],
-      [dim(0, 2, 0, 1), [true, 11, 280, 34, 325]],
-      [dim(0, 0, 2, 1), [true, 11, 210, 34, 255]],
-      [dim(1, 1, 1, 1), [true, 11, 542, 34, 587]],
-      [dim(1, 1, 1, 2), [true, 11, 542, 68, 621]],
+      [dim(1, 0, 0, 0, 1), [false, 10, 297, 34, 341]],
+      [dim(0, 1, 0, 0, 1), [true, 11, 140, 34, 185]],
+      [dim(0, 0, 1, 0, 1), [true, 11, 105, 34, 150]],
+      [dim(0, 0, 0, 1, 1), [true, 11, 58, 34, 103]],
+      [dim(2, 0, 0, 0, 1), [false, 10, 594, 34, 638]],
+      [dim(0, 2, 0, 0, 1), [true, 11, 280, 34, 325]],
+      [dim(0, 0, 2, 0, 1), [true, 11, 210, 34, 255]],
+      [dim(1, 1, 1, 0, 1), [true, 11, 542, 34, 587]],
+      [dim(1, 1, 1, 0, 2), [true, 11, 542, 68, 621]],
+
+      [dim(1, 0, 0, 1, 1), [true, 11, 355, 34, 400]],
+      [dim(0, 1, 0, 1, 1), [true, 11, 198, 34, 243]],
     ].forEach(([dimensions, expectedSizes]) => {
       dimensions = dimensions as IDimensions;
       [
