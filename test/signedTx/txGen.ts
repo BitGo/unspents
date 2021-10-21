@@ -88,7 +88,7 @@ function signInput(
     txBuilder.sign({
       prevOutScriptType,
       vin: index,
-      keyPair,
+      keyPair: Object.assign(keyPair, { network: txBuilder.network }),
       redeemScript: unspent.redeemScript,
       witnessValue: unspent.inputType === 'p2shP2pk' || unspent.inputType === 'p2sh' ? undefined : unspent.value,
       witnessScript: unspent.witnessScript,
