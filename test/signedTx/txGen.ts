@@ -82,15 +82,20 @@ function signInput(
   unspent: IUnspent,
 ) {
   const nKeys = unspent.inputType === 'p2shP2pk' ? 1 : 2;
-  keys.slice(0, nKeys).forEach((key) =>
-    txBuilder.sign(
-      index,
-      key,
-      unspent.redeemScript,
-      undefined /* hashType */,
-      unspent.value /* needed for segwit signatures */,
-      unspent.witnessScript,
-    ),
+  const prevOutScriptType = bitcoin.bitgo.outputScripts.isScriptType2Of3(unspent.inputType)
+    ? bitcoin.bitgo.outputScripts.scriptType2Of3AsPrevOutType(unspent.inputType)
+    : 'p2sh-p2pk';
+  keys.slice(0, nKeys).forEach((keyPair) =>
+    txBuilder.sign({
+      prevOutScriptType,
+      vin: index,
+      keyPair,
+      redeemScript: unspent.redeemScript,
+      witnessValue: (unspent.inputType === 'p2shP2pk' || unspent.inputType === 'p2sh')
+        ? undefined
+        : unspent.value,
+      witnessScript: unspent.witnessScript,
+    }),
   );
 }
 
