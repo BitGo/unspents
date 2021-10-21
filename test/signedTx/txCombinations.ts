@@ -8,6 +8,8 @@ import { Dimensions } from '../../src';
 import {
   getInputDimensionsForUnspentType,
   getOutputDimensionsForUnspentType,
+  TestUnspentType,
+  UnspentTypeP2shP2pk,
   UnspentTypePubKeyHash,
   UnspentTypeScript2of3,
 } from '../testutils';
@@ -60,14 +62,18 @@ const testDimensionsFromTx = (txCombo: any) => {
 
 describe(`Dimensions for transaction combinations`, function() {
   const params = {
-    inputTypes: Object.keys(UnspentTypeScript2of3)
-      .filter((scriptType) => scriptType !== 'p2tr'), // TODO: remove when p2tr signing is supported,
-    maxNInputs: 3,
+    inputTypes: [
+      ...Object.keys(UnspentTypeScript2of3)
+      // TODO: remove when p2tr signing is supported,
+      .filter((scriptType) => scriptType !== 'p2tr'),
+      UnspentTypeP2shP2pk,
+    ],
+    maxNInputs: 2,
     outputTypes: [...Object.keys(UnspentTypeScript2of3), ...Object.keys(UnspentTypePubKeyHash)],
-    maxNOutputs: 3,
+    maxNOutputs: 2,
   };
 
-  runCombinations(params, (inputTypeCombo: any, outputTypeCombo: any) => {
+  runCombinations(params, (inputTypeCombo: string[], outputTypeCombo: TestUnspentType[]) => {
     const expectedInputDims = Dimensions.sum(...inputTypeCombo.map(getInputDimensionsForUnspentType));
     const expectedOutputDims = Dimensions.sum(...outputTypeCombo.map(getOutputDimensionsForUnspentType));
 
