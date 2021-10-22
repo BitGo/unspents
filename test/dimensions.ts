@@ -36,6 +36,7 @@ describe('Dimensions Arithmetic', function() {
       nP2shP2wshInputs: 0,
       nP2wshInputs: 0,
       nP2trKeypathInputs: 0,
+      nP2shP2pkInputs: 0,
       outputs: { size: 0, count: 0 },
     }));
 
@@ -66,6 +67,7 @@ describe('Dimensions Arithmetic', function() {
       nP2shP2wshInputs: 2,
       nP2wshInputs: 3,
       nP2trKeypathInputs: 4,
+      nP2shP2pkInputs: 0,
       outputs: { size: 67, count: 3 },
     }));
 
@@ -102,6 +104,7 @@ describe('Dimensions Arithmetic', function() {
       nP2shP2wshInputs: 2,
       nP2wshInputs: 3,
       nP2trKeypathInputs: 4,
+      nP2shP2pkInputs: 5,
       outputs: { count: 1, size: 22 },
     }).times(3).should.eql(
       Dimensions({
@@ -109,6 +112,7 @@ describe('Dimensions Arithmetic', function() {
         nP2shP2wshInputs: 6,
         nP2wshInputs: 9,
         nP2trKeypathInputs: 12,
+        nP2shP2pkInputs: 15,
         outputs: { count: 3, size: 66 },
       }),
     );
@@ -151,6 +155,7 @@ describe('Dimensions from unspent types', function() {
       nP2shInputs: 2,
       nP2wshInputs: 2,
       nP2trKeypathInputs: 2,
+      nP2shP2pkInputs: 0,
       outputs: { count: 0, size: 0 },
     }));
   });

@@ -5,6 +5,7 @@ import { Dimensions } from '../../src';
 import {
   TestUnspentType,
   UnspentTypeOpReturn,
+  UnspentTypeP2shP2pk,
   UnspentTypePubKeyHash,
   UnspentTypeScript2of3,
 } from '../testutils';
@@ -15,9 +16,12 @@ import {
 } from './txGen';
 
 describe(`Dimension estimation errors`, function() {
-  interface IInputTypeAndCount { inputType: TestUnspentType; count: number; }
+  interface IInputTypeAndCount { inputType: string; count: number; }
 
-  const inputTypes: IInputTypeAndCount[] = Object.keys(UnspentTypeScript2of3)
+  const inputTypes: IInputTypeAndCount[] = [
+    ...Object.keys(UnspentTypeScript2of3),
+    UnspentTypeP2shP2pk,
+  ]
     .filter((scriptType) => scriptType !== 'p2tr') // TODO: remove when p2tr signing is supported
     .reduce((all: IInputTypeAndCount[], inputType) => [
       ...all,
@@ -36,7 +40,7 @@ describe(`Dimension estimation errors`, function() {
   // set to `true` if we want the test to fail if the error is *smaller* than expected
   const strictErrorBounds = false;
 
-  const getExpectedInputErrors = (inputType: any, inputCount: any, outputType: any) => {
+  const getExpectedInputErrors = (inputType: string, inputCount: number): [low: number, high: number] => {
     switch (inputType) {
       case UnspentTypeScript2of3.p2sh:
         return [0, 5 * inputCount];
@@ -44,6 +48,8 @@ describe(`Dimension estimation errors`, function() {
       case UnspentTypeScript2of3.p2wsh:
       case UnspentTypeScript2of3.p2tr:
         return [0, inputCount];
+      case UnspentTypeP2shP2pk:
+        return [0, 3 * inputCount];
       default:
         throw new Error('illegal inputType ' + inputType);
     }
@@ -53,17 +59,17 @@ describe(`Dimension estimation errors`, function() {
     inputTypes,
     nInputKeyTriplets: 2,
     outputTypes,
-    nOutputKeyTriplets: 128,
+    nOutputKeyTriplets: 32,
   };
 
   runSignedTransactions(params, (
-    inputType: TestUnspentType,
+    inputType: string,
     inputCount: number,
     outputType: TestUnspentType,
     signedTxs: any[],
   ) => {
     const title =
-      `should have correct vsize error bounds ${getExpectedInputErrors(inputType, inputCount, outputType)}` +
+      `should have correct vsize error bounds ${getExpectedInputErrors(inputType, inputCount)}` +
       ` for input=${inputType}-${inputCount} and output=${outputType}`;
 
     it(title, function() {
@@ -85,7 +91,7 @@ describe(`Dimension estimation errors`, function() {
       console.log(`inputType=${inputType} outputType=${outputType}\n`);
       console.log(`inputVSizeErrors`, inputVSizeErrors, '\n');
 
-      const [low, high] = getExpectedInputErrors(inputType, inputCount, outputType);
+      const [low, high] = getExpectedInputErrors(inputType, inputCount);
       inputVSizeErrors.getPercentile(0.01).should.be.greaterThanOrEqual(low);
       inputVSizeErrors.getPercentile(0.99).should.be.belowOrEqual(high);
       if (strictErrorBounds) {

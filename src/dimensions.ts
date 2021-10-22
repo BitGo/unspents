@@ -72,7 +72,16 @@ export const VirtualSizes = Object.freeze({
   //
   // Size of a P2PKH input with (un)compressed key
   // Source: https://bitcoin.stackexchange.com/questions/48279/how-big-is-the-input-of-a-p2pkh-transaction
+  // - 36 vbyte outpoint
+  // -  4 vbyte nSequence
+  // -  1 vbyte scriptSig length
+  // -  1 vbyte opcode OP_PUSH
+  // - 72 vbyte signature (upper end)
+  // -  1 vbyte opcode OP_PUSH
+  // - 33 vbyte compressed pubkey
   txP2pkhInputSizeCompressedKey: 148,
+
+  // - 65 vbyte uncompressed pubkey
   txP2pkhInputSizeUncompressedKey: 180,
 
   // The distribution of input weights for a 2-of-3 p2sh input with two signatures is as follows
@@ -118,6 +127,15 @@ export const VirtualSizes = Object.freeze({
   // 32+4+1+4+(1+1+64)/4 = 57.5 vB - rounded up to 58
   // See: https://murchandamus.medium.com/2-of-3-multisig-inputs-using-pay-to-taproot-d5faf2312ba3
   txP2trKeypathInputSize: 58,
+
+  // Single-signature single-pubkey
+  // - 36 vbyte outpoint
+  // -  4 vbyte nSequence
+  // -  1 vbyte scriptSig length
+  // -  1 vbyte opcode OP_PUSH
+  // - 72 vbyte signature (upper end)
+  // - 35 vbyte P2PK script
+  txP2shP2pkInputSize: 150,
 
   //
   // Output sizes
@@ -213,10 +231,13 @@ interface IBitcoinTx {
 }
 
 export interface IBaseDimensions {
+  // Multisig
   nP2shInputs: number;
   nP2shP2wshInputs: number;
   nP2wshInputs: number;
   nP2trKeypathInputs: number;
+  // Single-Signature
+  nP2shP2pkInputs: number;
   outputs: IOutputDimensions;
 }
 
@@ -295,6 +316,7 @@ export const Dimensions = t.struct<IDimensions>({
   nP2shP2wshInputs: PositiveInteger,
   nP2wshInputs: PositiveInteger,
   nP2trKeypathInputs: PositiveInteger,
+  nP2shP2pkInputs: PositiveInteger,
   outputs: OutputDimensions,
 }, { name: 'Dimensions' }) as IDimensionsStruct;
 
@@ -303,6 +325,7 @@ const zero = Object.freeze(Dimensions({
   nP2shP2wshInputs: 0,
   nP2wshInputs: 0,
   nP2trKeypathInputs: 0,
+  nP2shP2pkInputs: 0,
   outputs: { count: 0, size: 0 },
 })) as IDimensions;
 
@@ -409,12 +432,20 @@ Dimensions.fromInput = function(input: utxolib.TxInput, params = {}) {
   const p2shP2wshInput = Dimensions.sum({ nP2shP2wshInputs: 1 });
   const p2wshInput = Dimensions.sum({ nP2wshInputs: 1 });
   const p2trKeypathInput = Dimensions.sum({ nP2trKeypathInputs: 1 });
+  const p2shP2pkInput = Dimensions.sum({ nP2shP2pkInputs: 1 });
 
   if (input.script?.length || input.witness?.length) {
-    const parsed = utxolib.bitgo.parseSignatureScript2Of3(input);
+    const parsed = utxolib.bitgo.parseSignatureScript(input);
     switch (parsed.inputClassification) {
       case 'scripthash':
-        return parsed.isSegwitInput ? p2shP2wshInput : p2shInput;
+        switch (parsed.p2shOutputClassification) {
+          case 'pubkey':
+            return p2shP2pkInput;
+          case 'multisig':
+            return parsed.isSegwitInput ? p2shP2wshInput : p2shInput;
+          default:
+            throw new Error(`unknown p2shOutputClassification: ${parsed.p2shOutputClassification}`);
+        }
       case 'witnessscripthash':
         return p2wshInput;
     }
@@ -651,6 +682,7 @@ Dimensions.prototype.getInputsVSize = function(this: IBaseDimensions) {
     txP2shP2wshInputSize,
     txP2wshInputSize,
     txP2trKeypathInputSize,
+    txP2shP2pkInputSize,
   } = VirtualSizes;
 
   const {
@@ -658,12 +690,20 @@ Dimensions.prototype.getInputsVSize = function(this: IBaseDimensions) {
     nP2shP2wshInputs,
     nP2wshInputs,
     nP2trKeypathInputs,
+    nP2shP2pkInputs,
   } = this;
 
-  return nP2shInputs * txP2shInputSize +
+  const size = nP2shInputs * txP2shInputSize +
     nP2shP2wshInputs * txP2shP2wshInputSize +
     nP2wshInputs * txP2wshInputSize +
-    nP2trKeypathInputs * txP2trKeypathInputSize;
+    nP2trKeypathInputs * txP2trKeypathInputSize +
+    nP2shP2pkInputs * txP2shP2pkInputSize;
+
+  if (Number.isNaN(size)) {
+    throw new Error(`invalid size`);
+  }
+
+  return size;
 };
 
 /**

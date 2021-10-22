@@ -9,6 +9,8 @@ import * as utxo from '../src';
 const makeEnum = (...args: string[]): any =>
   args.reduce((obj, key) => Object.assign(obj, { [key]: key }), {});
 
+export const UnspentTypeP2shP2pk = 'p2shP2pk';
+
 const UnspentTypeScript2of3: {
   p2sh: string;
   p2shP2wsh: string;
@@ -44,8 +46,10 @@ const getInputDimensionsForUnspentType = (unspentType: TestUnspentType) => {
       return utxo.Dimensions.sum({ nP2shP2wshInputs: 1 });
     case UnspentTypeScript2of3.p2wsh:
       return utxo.Dimensions.sum({ nP2wshInputs: 1 });
-      case UnspentTypeScript2of3.p2tr:
-        return utxo.Dimensions.sum({ nP2trKeypathInputs: 1 });
+    case UnspentTypeScript2of3.p2tr:
+      return utxo.Dimensions.sum({ nP2trKeypathInputs: 1 });
+    case UnspentTypeP2shP2pk:
+      return utxo.Dimensions.sum({ nP2shP2pkInputs: 1 });
   }
   throw new Error(`no input dimensions for ${unspentType}`);
 };
@@ -55,6 +59,7 @@ const getOutputDimensionsForUnspentType = (unspentType: TestUnspentType) => {
   switch (unspentType) {
     case UnspentTypeScript2of3.p2sh:
     case UnspentTypeScript2of3.p2shP2wsh:
+    case UnspentTypeP2shP2pk:
       return utxo.Dimensions.fromOutputScriptLength(23);
     case UnspentTypeScript2of3.p2wsh:
       return utxo.Dimensions.fromOutputScriptLength(34);
