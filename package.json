@@ -27,7 +27,7 @@
   },
   "homepage": "https://github.com/BitGo/unspents#readme",
   "devDependencies": {
-    "@bitgo/utxo-lib": "~2.1.0-rc.1",
+    "@bitgo/utxo-lib": "~2.2.0-rc.3",
     "@types/lodash": "~4.14.123",
     "@types/mocha": "~5.2.6",
     "@types/node": "~14.17.5",
