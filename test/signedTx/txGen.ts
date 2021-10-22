@@ -20,23 +20,20 @@ interface IUnspent {
 }
 
 function createUnspent(pubkeys: Buffer[], inputType: string, value: number): IUnspent {
+  let spendableScript;
   if (inputType === UnspentTypeP2shP2pk) {
-    return {
-      ...bitcoin.bitgo.outputScripts.createOutputScriptP2shP2pk(pubkeys[0]),
-      value,
-      inputType,
-    };
+    spendableScript = bitcoin.bitgo.outputScripts.createOutputScriptP2shP2pk(pubkeys[0]);
+  } else if (bitcoin.bitgo.outputScripts.isScriptType2Of3(inputType)) {
+    spendableScript = bitcoin.bitgo.outputScripts.createOutputScript2of3(pubkeys, inputType);
+  } else {
+    throw new Error(`unexpected inputType ${inputType}`);
   }
-  if (bitcoin.bitgo.outputScripts.isScriptType2Of3(inputType)) {
-    return {
-      ...bitcoin.bitgo.outputScripts.createOutputScript2of3(
-        pubkeys, inputType as bitcoin.bitgo.outputScripts.ScriptType2Of3,
-      ),
-      value,
-      inputType,
-    };
-  }
-  throw new Error(`unexpected inputType ${inputType}`);
+
+  return {
+    ...spendableScript,
+    value,
+    inputType,
+  };
 }
 
 /**
