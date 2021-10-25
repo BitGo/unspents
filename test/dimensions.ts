@@ -13,6 +13,8 @@ describe('VirtualSizes', function () {
       txP2shP2wshInputSize: 140,
       txP2wshInputSize: 105,
       txP2trKeypathInputSize: 58,
+      txP2trScriptPathLevel1InputSize: 108,
+      txP2trScriptPathLevel2InputSize: 116,
       txP2shP2pkInputSize: 151,
     });
   });
@@ -42,6 +44,8 @@ describe('Dimensions Arithmetic', function () {
           nP2shP2wshInputs: 0,
           nP2wshInputs: 0,
           nP2trKeypathInputs: 0,
+          nP2trScriptPathLevel1Inputs: 0,
+          nP2trScriptPathLevel2Inputs: 0,
           nP2shP2pkInputs: 0,
           outputs: { size: 0, count: 0 },
         })
@@ -52,6 +56,8 @@ describe('Dimensions Arithmetic', function () {
       { nP2shP2wshInputs: 2 },
       { nP2wshInputs: 3 },
       { nP2trKeypathInputs: 4 },
+      { nP2trScriptPathLevel1Inputs: 5 },
+      { nP2trScriptPathLevel2Inputs: 6 },
       { outputs: { size: 23, count: 1 } },
       { outputs: { size: 44, count: 2 } },
       { outputs: { size: 0, count: 0 } },
@@ -59,13 +65,7 @@ describe('Dimensions Arithmetic', function () {
 
     components.forEach((component) => should.doesNotThrow(() => Dimensions.sum(component)));
 
-    const sum = Dimensions.zero()
-      .plus(components[0])
-      .plus(components[1])
-      .plus(components[2])
-      .plus(components[3])
-      .plus(components[4])
-      .plus(components[5]);
+    const sum = components.reduce((a, b) => a.plus(b), Dimensions.zero());
 
     sum.should.eql(Dimensions.sum(...components));
 
@@ -75,6 +75,8 @@ describe('Dimensions Arithmetic', function () {
         nP2shP2wshInputs: 2,
         nP2wshInputs: 3,
         nP2trKeypathInputs: 4,
+        nP2trScriptPathLevel1Inputs: 5,
+        nP2trScriptPathLevel2Inputs: 6,
         nP2shP2pkInputs: 0,
         outputs: { size: 67, count: 3 },
       })
@@ -115,7 +117,9 @@ describe('Dimensions Arithmetic', function () {
       nP2shP2wshInputs: 2,
       nP2wshInputs: 3,
       nP2trKeypathInputs: 4,
-      nP2shP2pkInputs: 5,
+      nP2trScriptPathLevel1Inputs: 5,
+      nP2trScriptPathLevel2Inputs: 6,
+      nP2shP2pkInputs: 7,
       outputs: { count: 1, size: 22 },
     })
       .times(3)
@@ -125,7 +129,9 @@ describe('Dimensions Arithmetic', function () {
           nP2shP2wshInputs: 6,
           nP2wshInputs: 9,
           nP2trKeypathInputs: 12,
-          nP2shP2pkInputs: 15,
+          nP2trScriptPathLevel1Inputs: 15,
+          nP2trScriptPathLevel2Inputs: 18,
+          nP2shP2pkInputs: 21,
           outputs: { count: 3, size: 66 },
         })
       );
@@ -147,7 +153,7 @@ describe('Dimensions from unspent types', function () {
     );
 
     Codes.p2tr.values.forEach((chain) =>
-      Dimensions.fromUnspent({ chain }).should.eql(Dimensions.sum({ nP2trKeypathInputs: 1 }))
+      Dimensions.fromUnspent({ chain }).should.eql(Dimensions.sum({ nP2trScriptPathLevel1Inputs: 1 }))
     );
 
     Dimensions.fromUnspents([
@@ -164,7 +170,9 @@ describe('Dimensions from unspent types', function () {
         nP2shP2wshInputs: 2,
         nP2shInputs: 2,
         nP2wshInputs: 2,
-        nP2trKeypathInputs: 2,
+        nP2trKeypathInputs: 0,
+        nP2trScriptPathLevel1Inputs: 2,
+        nP2trScriptPathLevel2Inputs: 0,
         nP2shP2pkInputs: 0,
         outputs: { count: 0, size: 0 },
       })
@@ -192,36 +200,46 @@ describe('Dimensions from unspent types', function () {
 
 describe('Dimensions estimates', function () {
   it('calculates vsizes', function () {
-    const dim = (
-      nP2shInputs: number,
-      nP2shP2wshInputs: number,
-      nP2wshInputs: number,
-      nP2trKeypathInputs: number,
-      nOutputs: number
-    ): IDimensions =>
-      Dimensions.sum(
+    function dim(nP2shInputs: number, nP2shP2wshInputs: number, nP2wshInputs: number, nOutputs: number): IDimensions {
+      return Dimensions.sum(
         {
           nP2shInputs,
           nP2shP2wshInputs,
           nP2wshInputs,
-          nP2trKeypathInputs,
         },
         getOutputDimensionsForUnspentType(UnspentTypePubKeyHash.p2pkh).times(nOutputs)
       );
+    }
+
+    function dimP2tr(
+      nP2trKeypathInputs: number,
+      nP2trScriptPathLevel1Inputs: number,
+      nP2trScriptPathLevel2Inputs: number,
+      nOutputs: number
+    ): IDimensions {
+      return Dimensions.sum(
+        {
+          nP2trKeypathInputs,
+          nP2trScriptPathLevel1Inputs,
+          nP2trScriptPathLevel2Inputs,
+        },
+        getOutputDimensionsForUnspentType(UnspentTypePubKeyHash.p2pkh).times(nOutputs)
+      );
+    }
 
     [
-      [dim(1, 0, 0, 0, 1), [false, 10, 298, 34, 342]],
-      [dim(0, 1, 0, 0, 1), [true, 11, 140, 34, 185]],
-      [dim(0, 0, 1, 0, 1), [true, 11, 105, 34, 150]],
-      [dim(0, 0, 0, 1, 1), [true, 11, 58, 34, 103]],
-      [dim(2, 0, 0, 0, 1), [false, 10, 596, 34, 640]],
-      [dim(0, 2, 0, 0, 1), [true, 11, 280, 34, 325]],
-      [dim(0, 0, 2, 0, 1), [true, 11, 210, 34, 255]],
-      [dim(1, 1, 1, 0, 1), [true, 11, 543, 34, 588]],
-      [dim(1, 1, 1, 0, 2), [true, 11, 543, 68, 622]],
+      [dim(1, 0, 0, 1), [false, 10, 298, 34, 342]],
+      [dim(0, 1, 0, 1), [true, 11, 140, 34, 185]],
+      [dim(0, 0, 1, 1), [true, 11, 105, 34, 150]],
+      [dim(2, 0, 0, 1), [false, 10, 596, 34, 640]],
+      [dim(0, 2, 0, 1), [true, 11, 280, 34, 325]],
+      [dim(0, 0, 2, 1), [true, 11, 210, 34, 255]],
+      [dim(1, 1, 1, 1), [true, 11, 543, 34, 588]],
+      [dim(1, 1, 1, 2), [true, 11, 543, 68, 622]],
 
-      [dim(1, 0, 0, 1, 1), [true, 11, 356, 34, 401]],
-      [dim(0, 1, 0, 1, 1), [true, 11, 198, 34, 243]],
+      [dimP2tr(1, 0, 0, 1), [true, 11, 58, 34, 103]],
+      [dimP2tr(0, 1, 0, 1), [true, 11, 108, 34, 153]],
+      [dimP2tr(0, 0, 1, 1), [true, 11, 116, 34, 161]],
     ].forEach(([dimensions, expectedSizes]) => {
       dimensions = dimensions as IDimensions;
       [

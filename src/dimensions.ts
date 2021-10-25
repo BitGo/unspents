@@ -10,6 +10,8 @@ import {
   inputComponentsP2shP2pk,
   inputComponentsP2shP2wsh,
   inputComponentsP2trKeySpend,
+  inputComponentsP2trScriptSpendLevel1,
+  inputComponentsP2trScriptSpendLevel2,
   inputComponentsP2wsh,
 } from './inputWeights';
 import { compactSize } from './scriptSizes';
@@ -92,6 +94,8 @@ export const VirtualSizes = Object.freeze({
   txP2wshInputSize: getVirtualInputSizeFromComponents(inputComponentsP2wsh),
   txP2trKeypathInputSize: getVirtualInputSizeFromComponents(inputComponentsP2trKeySpend),
   txP2shP2pkInputSize: getVirtualInputSizeFromComponents(inputComponentsP2shP2pk),
+  txP2trScriptPathLevel1InputSize: getVirtualInputSizeFromComponents(inputComponentsP2trScriptSpendLevel1),
+  txP2trScriptPathLevel2InputSize: getVirtualInputSizeFromComponents(inputComponentsP2trScriptSpendLevel2),
 
   //
   // Output sizes
@@ -159,6 +163,8 @@ export interface IBaseDimensions {
   nP2shP2wshInputs: number;
   nP2wshInputs: number;
   nP2trKeypathInputs: number;
+  nP2trScriptPathLevel1Inputs: number;
+  nP2trScriptPathLevel2Inputs: number;
   // Single-Signature
   nP2shP2pkInputs: number;
   outputs: IOutputDimensions;
@@ -185,7 +191,7 @@ interface IFromInputParams {
 
 export interface IFromUnspentParams {
   // The p2tr output type has multiple spend options and thus different weights per spend path.
-  p2trSpendType: 'keypath';
+  p2trSpendType: 'keypath' | 'scriptpath-level1' | 'scriptpath-level2';
 }
 
 export interface IDimensionsStruct extends t.Struct<IDimensions> {
@@ -194,6 +200,8 @@ export interface IDimensionsStruct extends t.Struct<IDimensions> {
   ASSUME_P2SH_P2WSH: symbol;
   ASSUME_P2WSH: symbol;
   ASSUME_P2TR_KEYPATH: symbol;
+  ASSUME_P2TR_SCRIPTPATH_LEVEL1: symbol;
+  ASSUME_P2TR_SCRIPTPATH_LEVEL2: symbol;
 
   SingleOutput: {
     p2sh: IDimensions;
@@ -239,6 +247,8 @@ export const Dimensions = t.struct<IDimensions>(
     nP2shP2wshInputs: PositiveInteger,
     nP2wshInputs: PositiveInteger,
     nP2trKeypathInputs: PositiveInteger,
+    nP2trScriptPathLevel1Inputs: PositiveInteger,
+    nP2trScriptPathLevel2Inputs: PositiveInteger,
     nP2shP2pkInputs: PositiveInteger,
     outputs: OutputDimensions,
   },
@@ -251,6 +261,8 @@ const zero = Object.freeze(
     nP2shP2wshInputs: 0,
     nP2wshInputs: 0,
     nP2trKeypathInputs: 0,
+    nP2trScriptPathLevel1Inputs: 0,
+    nP2trScriptPathLevel2Inputs: 0,
     nP2shP2pkInputs: 0,
     outputs: { count: 0, size: 0 },
   })
@@ -269,7 +281,14 @@ Object.defineProperty(Dimensions.prototype, 'nInputs', {
    * @return Number of total inputs (p2sh + p2shP2wsh + p2wsh + p2tr)
    */
   get() {
-    return this.nP2shInputs + this.nP2shP2wshInputs + this.nP2wshInputs + this.nP2trKeypathInputs;
+    return (
+      this.nP2shInputs +
+      this.nP2shP2wshInputs +
+      this.nP2wshInputs +
+      this.nP2trKeypathInputs +
+      this.nP2trKeypathScriptPathLevel1Inputs +
+      this.nP2trKeypathScriptPathLevel2Inputs
+    );
   },
 
   set(v) {
@@ -317,6 +336,8 @@ Dimensions.ASSUME_P2SH = Symbol('assume-p2sh');
 Dimensions.ASSUME_P2SH_P2WSH = Symbol('assume-p2sh-p2wsh');
 Dimensions.ASSUME_P2WSH = Symbol('assume-p2wsh');
 Dimensions.ASSUME_P2TR_KEYPATH = Symbol('assume-p2tr-keypath');
+Dimensions.ASSUME_P2TR_SCRIPTPATH_LEVEL1 = Symbol('assume-p2tr-scriptpath-level1');
+Dimensions.ASSUME_P2TR_SCRIPTPATH_LEVEL2 = Symbol('assume-p2tr-scriptpath-level2');
 
 /**
  * @param args - Dimensions (can be partially defined)
@@ -358,6 +379,8 @@ Dimensions.fromInput = function (input: utxolib.TxInput, params = {}) {
   const p2shP2wshInput = Dimensions.sum({ nP2shP2wshInputs: 1 });
   const p2wshInput = Dimensions.sum({ nP2wshInputs: 1 });
   const p2trKeypathInput = Dimensions.sum({ nP2trKeypathInputs: 1 });
+  const p2trScriptPathLevel1Input = Dimensions.sum({ nP2trScriptPathLevel1Inputs: 1 });
+  const p2trScriptPathLevel2Input = Dimensions.sum({ nP2trScriptPathLevel2Inputs: 1 });
   const p2shP2pkInput = Dimensions.sum({ nP2shP2pkInputs: 1 });
 
   if (input.script?.length || input.witness?.length) {
@@ -389,6 +412,10 @@ Dimensions.fromInput = function (input: utxolib.TxInput, params = {}) {
       return p2wshInput;
     case Dimensions.ASSUME_P2TR_KEYPATH:
       return p2trKeypathInput;
+    case Dimensions.ASSUME_P2TR_SCRIPTPATH_LEVEL1:
+      return p2trScriptPathLevel1Input;
+    case Dimensions.ASSUME_P2TR_SCRIPTPATH_LEVEL2:
+      return p2trScriptPathLevel2Input;
     default:
       throw new TypeError(`illegal value for assumeUnsigned: ${String(assumeUnsigned)}`);
   }
@@ -462,7 +489,7 @@ Dimensions.fromOutputOnChain = function (chain) {
  * @return {Dimensions} of the unspent
  * @throws if the chain code is invalid or unsupported
  */
-Dimensions.fromUnspent = ({ chain }, params: IFromUnspentParams = { p2trSpendType: 'keypath' }) => {
+Dimensions.fromUnspent = ({ chain }, params: IFromUnspentParams = { p2trSpendType: 'scriptpath-level1' }) => {
   if (!Codes.isValid(chain)) {
     throw new TypeError('invalid chain code');
   }
@@ -483,6 +510,10 @@ Dimensions.fromUnspent = ({ chain }, params: IFromUnspentParams = { p2trSpendTyp
     switch (params.p2trSpendType) {
       case 'keypath':
         return Dimensions.sum({ nP2trKeypathInputs: 1 });
+      case 'scriptpath-level1':
+        return Dimensions.sum({ nP2trScriptPathLevel1Inputs: 1 });
+      case 'scriptpath-level2':
+        return Dimensions.sum({ nP2trScriptPathLevel2Inputs: 1 });
       default:
         throw new Error(`unsupported p2trSpendType: ${params.p2trSpendType}`);
     }
@@ -585,7 +616,14 @@ Dimensions.prototype.getNInputs = function () {
  * @returns {boolean} true iff dimensions have one or more (p2sh)p2wsh inputs
  */
 Dimensions.prototype.isSegwit = function () {
-  return this.nP2wshInputs + this.nP2shP2wshInputs + this.nP2trKeypathInputs > 0;
+  return (
+    this.nP2wshInputs +
+      this.nP2shP2wshInputs +
+      this.nP2trKeypathInputs +
+      this.nP2trScriptPathLevel1Inputs +
+      this.nP2trScriptPathLevel2Inputs >
+    0
+  );
 };
 
 /**
@@ -599,18 +637,34 @@ Dimensions.prototype.getOverheadVSize = function () {
  * @returns {number} vsize of inputs, without transaction overhead
  */
 Dimensions.prototype.getInputsVSize = function (this: IBaseDimensions) {
-  const { txP2shInputSize, txP2shP2wshInputSize, txP2wshInputSize, txP2trKeypathInputSize, txP2shP2pkInputSize } =
-    VirtualSizes;
+  const {
+    txP2shInputSize,
+    txP2shP2wshInputSize,
+    txP2wshInputSize,
+    txP2trKeypathInputSize,
+    txP2trScriptPathLevel1InputSize,
+    txP2trScriptPathLevel2InputSize,
+    txP2shP2pkInputSize,
+  } = VirtualSizes;
 
-  const { nP2shInputs, nP2shP2wshInputs, nP2wshInputs, nP2trKeypathInputs, nP2shP2pkInputs } = this;
+  const {
+    nP2shInputs,
+    nP2shP2wshInputs,
+    nP2wshInputs,
+    nP2trKeypathInputs,
+    nP2trScriptPathLevel1Inputs,
+    nP2trScriptPathLevel2Inputs,
+    nP2shP2pkInputs,
+  } = this;
 
   const size =
     nP2shInputs * txP2shInputSize +
     nP2shP2wshInputs * txP2shP2wshInputSize +
     nP2wshInputs * txP2wshInputSize +
     nP2trKeypathInputs * txP2trKeypathInputSize +
-    nP2shP2pkInputs * txP2shP2pkInputSize;
-
+    nP2shP2pkInputs * txP2shP2pkInputSize +
+    nP2trScriptPathLevel1Inputs * txP2trScriptPathLevel1InputSize +
+    nP2trScriptPathLevel2Inputs * txP2trScriptPathLevel2InputSize;
   if (Number.isNaN(size)) {
     throw new Error(`invalid size`);
   }

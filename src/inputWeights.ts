@@ -55,13 +55,26 @@ export function getInputComponentsWeight(c: InputComponents): number {
   });
 }
 
-const op0Size = 1;
-const opPushSize = 1;
+const opSize = 1;
+const op0Size = opSize;
+const opPushSize = opSize;
+const opCheckSigVerifySize = opSize;
+const opCheckSigSize = opSize;
 const ecdsaSignatureSize = 72;
+const schnorrPubkeySize = 32;
 const schnorrSignatureNoSighashSize = 64;
 const p2msPubScriptSize = 105;
 const p2wshPubScriptSize = 34;
 const p2pkPubScriptSize = 35;
+
+function p2trScriptSpend(level: 1 | 2): number[] {
+  return [
+    schnorrSignatureNoSighashSize,
+    schnorrSignatureNoSighashSize,
+    /* header byte */ 1 + /* inner key */ 32 + /* inner leaf */ 32 * level,
+    opPushSize + schnorrPubkeySize + opCheckSigSize + opPushSize + schnorrPubkeySize + opCheckSigVerifySize,
+  ];
+}
 
 function p2msSigScriptSize(witness: boolean) {
   return [
@@ -78,7 +91,7 @@ export const inputComponentsP2sh: InputComponents = {
 };
 
 export const inputComponentsP2shP2wsh: InputComponents = {
-  script: [opPushSize + p2wshPubScriptSize],
+  script: [opSize + p2wshPubScriptSize],
   witness: p2msSigScriptSize(true),
 };
 
@@ -91,6 +104,16 @@ export const inputComponentsP2wsh: InputComponents = {
 export const inputComponentsP2trKeySpend: InputComponents = {
   script: [],
   witness: [schnorrSignatureNoSighashSize],
+};
+
+export const inputComponentsP2trScriptSpendLevel1: InputComponents = {
+  script: [],
+  witness: p2trScriptSpend(1),
+};
+
+export const inputComponentsP2trScriptSpendLevel2: InputComponents = {
+  script: [],
+  witness: p2trScriptSpend(2),
 };
 
 export const inputComponentsP2shP2pk: InputComponents = {
