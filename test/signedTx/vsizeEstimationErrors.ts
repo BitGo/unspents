@@ -10,25 +10,25 @@ import {
   UnspentTypeScript2of3,
 } from '../testutils';
 
-import {
-  Histogram,
-  runSignedTransactions,
-} from './txGen';
+import { Histogram, runSignedTransactions } from './txGen';
 
-describe(`Dimension estimation errors`, function() {
-  interface IInputTypeAndCount { inputType: string; count: number; }
+describe(`Dimension estimation errors`, function () {
+  interface IInputTypeAndCount {
+    inputType: string;
+    count: number;
+  }
 
-  const inputTypes: IInputTypeAndCount[] = [
-    ...Object.keys(UnspentTypeScript2of3),
-    UnspentTypeP2shP2pk,
-  ]
+  const inputTypes: IInputTypeAndCount[] = [...Object.keys(UnspentTypeScript2of3), UnspentTypeP2shP2pk]
     .filter((scriptType) => scriptType !== 'p2tr') // TODO: remove when p2tr signing is supported
-    .reduce((all: IInputTypeAndCount[], inputType) => [
-      ...all,
-      { inputType, count: 1 },
-      { inputType, count: 2 },
-      { inputType, count: 4 },
-    ], []);
+    .reduce(
+      (all: IInputTypeAndCount[], inputType) => [
+        ...all,
+        { inputType, count: 1 },
+        { inputType, count: 2 },
+        { inputType, count: 4 },
+      ],
+      []
+    );
 
   const outputTypes = [
     ...Object.keys(UnspentTypeScript2of3),
@@ -62,44 +62,39 @@ describe(`Dimension estimation errors`, function() {
     nOutputKeyTriplets: 32,
   };
 
-  runSignedTransactions(params, (
-    inputType: string,
-    inputCount: number,
-    outputType: TestUnspentType,
-    signedTxs: any[],
-  ) => {
-    const title =
-      `should have correct vsize error bounds ${getExpectedInputErrors(inputType, inputCount)}` +
-      ` for input=${inputType}-${inputCount} and output=${outputType}`;
+  runSignedTransactions(
+    params,
+    (inputType: string, inputCount: number, outputType: TestUnspentType, signedTxs: any[]) => {
+      const title =
+        `should have correct vsize error bounds ${getExpectedInputErrors(inputType, inputCount)}` +
+        ` for input=${inputType}-${inputCount} and output=${outputType}`;
 
-    it(title, function() {
-      this.timeout(5000);
-      const inputVSizeErrors = new Histogram();
-      signedTxs.forEach((tx) => {
-        const dims = Dimensions.fromTransaction(tx);
+      it(title, function () {
+        this.timeout(5000);
+        const inputVSizeErrors = new Histogram();
+        signedTxs.forEach((tx) => {
+          const dims = Dimensions.fromTransaction(tx);
 
-        const totalVSize = tx.virtualSize();
-        const outputsVSize = totalVSize - Object.assign(tx.clone(), { outs: [] }).virtualSize();
-        const outputVSizeError = (dims.getOutputsVSize() - outputsVSize);
-        outputVSizeError.should.eql(0);
+          const totalVSize = tx.virtualSize();
+          const outputsVSize = totalVSize - Object.assign(tx.clone(), { outs: [] }).virtualSize();
+          const outputVSizeError = dims.getOutputsVSize() - outputsVSize;
+          outputVSizeError.should.eql(0);
 
-        const overheadPlusInputsVSize = totalVSize - outputsVSize;
-        const inputVSizeError = (dims.getOverheadVSize() + dims.getInputsVSize()) - overheadPlusInputsVSize;
-        inputVSizeErrors.add(inputVSizeError);
+          const overheadPlusInputsVSize = totalVSize - outputsVSize;
+          const inputVSizeError = dims.getOverheadVSize() + dims.getInputsVSize() - overheadPlusInputsVSize;
+          inputVSizeErrors.add(inputVSizeError);
+        });
+
+        console.log(`inputType=${inputType} outputType=${outputType}\n`);
+        console.log(`inputVSizeErrors`, inputVSizeErrors, '\n');
+
+        const [low, high] = getExpectedInputErrors(inputType, inputCount);
+        inputVSizeErrors.getPercentile(0.01).should.be.greaterThanOrEqual(low);
+        inputVSizeErrors.getPercentile(0.99).should.be.belowOrEqual(high);
+        if (strictErrorBounds) {
+          [inputVSizeErrors.getPercentile(0.01), inputVSizeErrors.getPercentile(0.99)].should.eql([low, high]);
+        }
       });
-
-      console.log(`inputType=${inputType} outputType=${outputType}\n`);
-      console.log(`inputVSizeErrors`, inputVSizeErrors, '\n');
-
-      const [low, high] = getExpectedInputErrors(inputType, inputCount);
-      inputVSizeErrors.getPercentile(0.01).should.be.greaterThanOrEqual(low);
-      inputVSizeErrors.getPercentile(0.99).should.be.belowOrEqual(high);
-      if (strictErrorBounds) {
-        [
-          inputVSizeErrors.getPercentile(0.01),
-          inputVSizeErrors.getPercentile(0.99),
-        ].should.eql([low, high]);
-      }
-    });
-  });
+    }
+  );
 });
