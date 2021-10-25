@@ -214,21 +214,10 @@ export const OutputDimensions = t.refinement<IOutputDimensions>(
     size: PositiveInteger, // aggregate vsize
   }),
   /* predicate: count is zero iff size is zero */
-  ({ count, size }: { count: number, size: number }) => (count === 0) === (size === 0),
+  ({ count, size }: { count: number; size: number }) => (count === 0) === (size === 0),
   /* name */
-  'Outputs',
+  'Outputs'
 );
-
-interface IOutput {
-  index: number;
-  script: Buffer;
-  witness: Buffer;
-}
-
-interface IBitcoinTx {
-  ins: IOutput[];
-  outs: IOutput[];
-}
 
 export interface IBaseDimensions {
   // Multisig
@@ -266,7 +255,6 @@ export interface IFromUnspentParams {
 }
 
 export interface IDimensionsStruct extends t.Struct<IDimensions> {
-
   (v: IBaseDimensions): IDimensions;
   ASSUME_P2SH: symbol;
   ASSUME_P2SH_P2WSH: symbol;
@@ -274,12 +262,12 @@ export interface IDimensionsStruct extends t.Struct<IDimensions> {
   ASSUME_P2TR_KEYPATH: symbol;
 
   SingleOutput: {
-    p2sh: IDimensions,
-    p2shP2wsh: IDimensions,
-    p2wsh: IDimensions,
-    p2tr: IDimensions,
-    p2pkh: IDimensions,
-    p2wpkh: IDimensions,
+    p2sh: IDimensions;
+    p2shP2wsh: IDimensions;
+    p2wsh: IDimensions;
+    p2tr: IDimensions;
+    p2pkh: IDimensions;
+    p2wpkh: IDimensions;
   };
   new (v: IBaseDimensions): IDimensions;
 
@@ -299,7 +287,7 @@ export interface IDimensionsStruct extends t.Struct<IDimensions> {
   fromUnspent(unspent: { chain: ChainCode }, params?: IFromUnspentParams): IDimensions;
   fromUnspents(unspents: Array<{ chain: ChainCode }>): IDimensions;
 
-  fromTransaction(tx: utxolib.Transaction, params?: { assumeUnsigned?: symbol } ): IDimensions;
+  fromTransaction(tx: utxolib.Transaction, params?: { assumeUnsigned?: symbol }): IDimensions;
 }
 
 /**
@@ -311,29 +299,34 @@ export interface IDimensionsStruct extends t.Struct<IDimensions> {
  * See https://bitcoincore.org/en/segwit_wallet_dev/#transaction-serialization
  * for explanation of the different components.
  */
-export const Dimensions = t.struct<IDimensions>({
-  nP2shInputs: PositiveInteger,
-  nP2shP2wshInputs: PositiveInteger,
-  nP2wshInputs: PositiveInteger,
-  nP2trKeypathInputs: PositiveInteger,
-  nP2shP2pkInputs: PositiveInteger,
-  outputs: OutputDimensions,
-}, { name: 'Dimensions' }) as IDimensionsStruct;
+export const Dimensions = t.struct<IDimensions>(
+  {
+    nP2shInputs: PositiveInteger,
+    nP2shP2wshInputs: PositiveInteger,
+    nP2wshInputs: PositiveInteger,
+    nP2trKeypathInputs: PositiveInteger,
+    nP2shP2pkInputs: PositiveInteger,
+    outputs: OutputDimensions,
+  },
+  { name: 'Dimensions' }
+) as IDimensionsStruct;
 
-const zero = Object.freeze(Dimensions({
-  nP2shInputs: 0,
-  nP2shP2wshInputs: 0,
-  nP2wshInputs: 0,
-  nP2trKeypathInputs: 0,
-  nP2shP2pkInputs: 0,
-  outputs: { count: 0, size: 0 },
-})) as IDimensions;
+const zero = Object.freeze(
+  Dimensions({
+    nP2shInputs: 0,
+    nP2shP2wshInputs: 0,
+    nP2wshInputs: 0,
+    nP2trKeypathInputs: 0,
+    nP2shP2pkInputs: 0,
+    outputs: { count: 0, size: 0 },
+  })
+) as IDimensions;
 
 /**
  * Dimensions object where all properties are 0
  * @return {any}
  */
-Dimensions.zero = function(): IDimensions {
+Dimensions.zero = function (): IDimensions {
   return zero;
 };
 
@@ -367,11 +360,7 @@ type DimProperty = number | IOutputDimensions;
 
 type DimPropertyConstructor = (v: any) => DimProperty;
 
-type MapFunc = (
-  value: DimProperty,
-  key: keyof IDimensions,
-  prop: DimPropertyConstructor,
-) => DimProperty;
+type MapFunc = (value: DimProperty, key: keyof IDimensions, prop: DimPropertyConstructor) => DimProperty;
 
 /**
  * Return new Dimensions with all properties mapped by func
@@ -381,9 +370,12 @@ type MapFunc = (
  */
 const mapDimensions = (dim: IDimensions, func: MapFunc) => {
   return Dimensions(
-    _.fromPairs(_.map(Dimensions.meta.props, (prop, key) =>
-      [key, func((dim as any)[key], key as keyof IDimensions, prop as DimPropertyConstructor)],
-    )) as any,
+    _.fromPairs(
+      _.map(Dimensions.meta.props, (prop, key) => [
+        key,
+        func((dim as any)[key], key as keyof IDimensions, prop as DimPropertyConstructor),
+      ])
+    ) as any
   );
 };
 
@@ -396,7 +388,7 @@ Dimensions.ASSUME_P2TR_KEYPATH = Symbol('assume-p2tr-keypath');
  * @param args - Dimensions (can be partially defined)
  * @return {Dimensions} sum of arguments
  */
-Dimensions.sum = function(...args: Array<Partial<IDimensions>>): IDimensions {
+Dimensions.sum = function (...args: Array<Partial<IDimensions>>): IDimensions {
   return args.reduce((a: IDimensions, b: Partial<IDimensions>) => Dimensions(a).plus(b), zero);
 };
 
@@ -404,7 +396,7 @@ Dimensions.sum = function(...args: Array<Partial<IDimensions>>): IDimensions {
  * @param chain
  * @return {Number}
  */
-Dimensions.getOutputScriptLengthForChain = function(chain: ChainCode): number {
+Dimensions.getOutputScriptLengthForChain = function (chain: ChainCode): number {
   if (!Codes.isValid(chain)) {
     throw new TypeError('invalid chain code');
   }
@@ -415,7 +407,7 @@ Dimensions.getOutputScriptLengthForChain = function(chain: ChainCode): number {
  * @param scriptLength
  * @return {Number} vSize of an output with script length
  */
-Dimensions.getVSizeForOutputWithScriptLength = function(scriptLength: number): number {
+Dimensions.getVSizeForOutputWithScriptLength = function (scriptLength: number): number {
   if (!PositiveInteger.is(scriptLength)) {
     throw new TypeError(`expected positive integer for scriptLength, got ${scriptLength}`);
   }
@@ -427,7 +419,7 @@ Dimensions.getVSizeForOutputWithScriptLength = function(scriptLength: number): n
  * @param params
  *        [param.assumeUnsigned] - default type for unsigned input
  */
-Dimensions.fromInput = function(input: utxolib.TxInput, params = {}) {
+Dimensions.fromInput = function (input: utxolib.TxInput, params = {}) {
   const p2shInput = Dimensions.sum({ nP2shInputs: 1 });
   const p2shP2wshInput = Dimensions.sum({ nP2shP2wshInputs: 1 });
   const p2wshInput = Dimensions.sum({ nP2wshInputs: 1 });
@@ -473,7 +465,7 @@ Dimensions.fromInput = function(input: utxolib.TxInput, params = {}) {
  * @param params - @see Dimensions.fromInput()
  * @return {Dimensions} sum of the dimensions for each input (@see Dimensions.fromInput())
  */
-Dimensions.fromInputs = function(inputs, params) {
+Dimensions.fromInputs = function (inputs, params) {
   if (!Array.isArray(inputs)) {
     throw new TypeError(`inputs must be array`);
   }
@@ -484,7 +476,7 @@ Dimensions.fromInputs = function(inputs, params) {
  * @param scriptLength {PositiveInteger} - size of the output script in bytes
  * @return {Dimensions} - Dimensions of the output
  */
-Dimensions.fromOutputScriptLength = function(scriptLength) {
+Dimensions.fromOutputScriptLength = function (scriptLength) {
   return Dimensions.sum({
     outputs: {
       count: 1,
@@ -497,7 +489,7 @@ Dimensions.fromOutputScriptLength = function(scriptLength) {
  * @param output - a tx output
  * @return Dimensions - the dimensions of the given output
  */
-Dimensions.fromOutput = function({ script }) {
+Dimensions.fromOutput = function ({ script }) {
   if (!script) {
     throw new Error('expected output script to be defined');
   }
@@ -511,7 +503,7 @@ Dimensions.fromOutput = function({ script }) {
  * @param outputs - Array of outputs
  * @return {Dimensions} sum of the dimensions for each output (@see Dimensions.fromOutput())
  */
-Dimensions.fromOutputs = function(outputs) {
+Dimensions.fromOutputs = function (outputs) {
   if (!Array.isArray(outputs)) {
     throw new TypeError(`outputs must be array`);
   }
@@ -525,7 +517,7 @@ Dimensions.fromOutputs = function(outputs) {
  * @param chain - Chain code as defined by utxo.chain
  * @return {Dimensions} - Dimensions for a single output on the given chain.
  */
-Dimensions.fromOutputOnChain = function(chain) {
+Dimensions.fromOutputOnChain = function (chain) {
   return Dimensions.fromOutputScriptLength(Dimensions.getOutputScriptLengthForChain(chain));
 };
 
@@ -569,7 +561,7 @@ Dimensions.fromUnspent = ({ chain }, params: IFromUnspentParams = { p2trSpendTyp
  * @param unspents
  * @return {Dimensions} sum of the dimensions for each unspent (@see Dimensions.fromUnspent())
  */
-Dimensions.fromUnspents = function(unspents) {
+Dimensions.fromUnspents = function (unspents) {
   if (!Array.isArray(unspents)) {
     throw new TypeError(`unspents must be array`);
   }
@@ -582,7 +574,7 @@ Dimensions.fromUnspents = function(unspents) {
  * @param [param.assumeUnsigned] - default type for unsigned inputs
  * @return {Dimensions}
  */
-Dimensions.fromTransaction = function({ ins, outs }, params) {
+Dimensions.fromTransaction = function ({ ins, outs }, params) {
   return Dimensions.fromInputs(ins, params).plus(Dimensions.fromOutputs(outs));
 };
 
@@ -590,7 +582,7 @@ Dimensions.fromTransaction = function({ ins, outs }, params) {
  * @param dimensions (can be partially defined)
  * @return new dimensions with argument added
  */
-Dimensions.prototype.plus = function(dimensions: Partial<IDimensions>) {
+Dimensions.prototype.plus = function (dimensions: Partial<IDimensions>) {
   if (!_.isObject(dimensions)) {
     throw new TypeError(`expected argument to be object`);
   }
@@ -602,7 +594,7 @@ Dimensions.prototype.plus = function(dimensions: Partial<IDimensions>) {
       throw new Error('deprecated partial addition: argument has key "nOutputs" but no "outputs"');
     }
 
-    const { outputs, nOutputs } = (dimensions as IDimensions);
+    const { outputs, nOutputs } = dimensions as IDimensions;
 
     if (outputs.count !== nOutputs) {
       throw new Error('deprecated partial addition: inconsistent values for "nOutputs" and "outputs.count"');
@@ -610,12 +602,10 @@ Dimensions.prototype.plus = function(dimensions: Partial<IDimensions>) {
   }
 
   const f: MapFunc = (v, key, prop) => {
-    const w = dimensions.hasOwnProperty(key)
-      ? prop(dimensions[key])
-      : zero[key];
+    const w = dimensions.hasOwnProperty(key) ? prop(dimensions[key]) : zero[key];
     if (key === 'outputs') {
-      const vOutputs = (v as IOutputDimensions);
-      const wOutputs = (w as IOutputDimensions);
+      const vOutputs = v as IOutputDimensions;
+      const wOutputs = w as IOutputDimensions;
       return {
         count: vOutputs.count + wOutputs.count,
         size: vOutputs.size + wOutputs.size,
@@ -632,7 +622,7 @@ Dimensions.prototype.plus = function(dimensions: Partial<IDimensions>) {
  * @param factor - Positive integer
  * @return {Dimensions}
  */
-Dimensions.prototype.times = function(factor: number) {
+Dimensions.prototype.times = function (factor: number) {
   if (!PositiveInteger.is(factor)) {
     throw new TypeError(`expected factor to be positive integer`);
   }
@@ -653,47 +643,35 @@ Dimensions.prototype.times = function(factor: number) {
  * @return Number of total inputs (p2sh, p2shP2wsh and p2wsh)
  * @deprecated use `dimension.nInputs` instead
  */
-Dimensions.prototype.getNInputs = function() {
+Dimensions.prototype.getNInputs = function () {
   return this.nP2shInputs + this.nP2shP2wshInputs + this.nP2wshInputs + this.nP2trKeypathInputs;
 };
 
 /**
  * @returns {boolean} true iff dimensions have one or more (p2sh)p2wsh inputs
  */
-Dimensions.prototype.isSegwit = function() {
-  return (this.nP2wshInputs + this.nP2shP2wshInputs + this.nP2trKeypathInputs) > 0;
+Dimensions.prototype.isSegwit = function () {
+  return this.nP2wshInputs + this.nP2shP2wshInputs + this.nP2trKeypathInputs > 0;
 };
 
 /**
  * @return {Number} overhead vsize, based on result isSegwit().
  */
-Dimensions.prototype.getOverheadVSize = function() {
-  return this.isSegwit()
-    ? VirtualSizes.txSegOverheadVSize
-    : VirtualSizes.txOverheadSize;
+Dimensions.prototype.getOverheadVSize = function () {
+  return this.isSegwit() ? VirtualSizes.txSegOverheadVSize : VirtualSizes.txOverheadSize;
 };
 
 /**
  * @returns {number} vsize of inputs, without transaction overhead
  */
-Dimensions.prototype.getInputsVSize = function(this: IBaseDimensions) {
-  const {
-    txP2shInputSize,
-    txP2shP2wshInputSize,
-    txP2wshInputSize,
-    txP2trKeypathInputSize,
-    txP2shP2pkInputSize,
-  } = VirtualSizes;
+Dimensions.prototype.getInputsVSize = function (this: IBaseDimensions) {
+  const { txP2shInputSize, txP2shP2wshInputSize, txP2wshInputSize, txP2trKeypathInputSize, txP2shP2pkInputSize } =
+    VirtualSizes;
 
-  const {
-    nP2shInputs,
-    nP2shP2wshInputs,
-    nP2wshInputs,
-    nP2trKeypathInputs,
-    nP2shP2pkInputs,
-  } = this;
+  const { nP2shInputs, nP2shP2wshInputs, nP2wshInputs, nP2trKeypathInputs, nP2shP2pkInputs } = this;
 
-  const size = nP2shInputs * txP2shInputSize +
+  const size =
+    nP2shInputs * txP2shInputSize +
     nP2shP2wshInputs * txP2shP2wshInputSize +
     nP2wshInputs * txP2wshInputSize +
     nP2trKeypathInputs * txP2trKeypathInputSize +
@@ -709,7 +687,7 @@ Dimensions.prototype.getInputsVSize = function(this: IBaseDimensions) {
 /**
  * @returns {number} return vsize of outputs, without overhead
  */
-Dimensions.prototype.getOutputsVSize = function() {
+Dimensions.prototype.getOutputsVSize = function () {
   return this.outputs.size;
 };
 
@@ -718,13 +696,12 @@ Dimensions.prototype.getOutputsVSize = function() {
  * overhead vsize, input vsize and output vsize.
  * @returns {Number} The estimated vsize of the transaction dimensions.
  */
-Dimensions.prototype.getVSize = function() {
+Dimensions.prototype.getVSize = function () {
   return this.getOverheadVSize() + this.getInputsVSize() + this.getOutputsVSize();
 };
 
 {
-  const singleOutput = (size: number) =>
-    Object.freeze(Dimensions.sum({ outputs: { count: 1, size } }));
+  const singleOutput = (size: number) => Object.freeze(Dimensions.sum({ outputs: { count: 1, size } }));
 
   Dimensions.SingleOutput = {
     p2sh: singleOutput(VirtualSizes.txP2shOutputSize),

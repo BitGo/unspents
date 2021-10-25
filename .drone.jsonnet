@@ -81,16 +81,14 @@ local MeasureSizeAndTiming(version, limit_branches=false) = {
         name: "lint",
         image: "node:lts",
         commands: [
-          "npx tslint --project .",
+          "npm run lint",
         ],
       },
     ],
   },
-  UnitTest("6"),
-  UnitTest("8"),
-  UnitTest("9"),
-  UnitTest("10"),
-  UnitTest("11"),
+  UnitTest("12"),
+  UnitTest("14"),
+  UnitTest("16"),
   MeasureSizeAndTiming("lts"),
 ]
 

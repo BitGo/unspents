@@ -32,26 +32,28 @@ interface ICode {
   purpose: Purpose;
 }
 
-const codeList: ReadonlyArray<Readonly<ICode>> = Object.freeze((
-  [
-    [0, UnspentType.p2sh, Purpose.external],
-    [10, UnspentType.p2shP2wsh, Purpose.external],
-    [20, UnspentType.p2wsh, Purpose.external],
-    [30, UnspentType.p2tr, Purpose.external],
+const codeList: ReadonlyArray<Readonly<ICode>> = Object.freeze(
+  (
+    [
+      [0, UnspentType.p2sh, Purpose.external],
+      [10, UnspentType.p2shP2wsh, Purpose.external],
+      [20, UnspentType.p2wsh, Purpose.external],
+      [30, UnspentType.p2tr, Purpose.external],
 
-    [1, UnspentType.p2sh, Purpose.internal],
-    [11, UnspentType.p2shP2wsh, Purpose.internal],
-    [21, UnspentType.p2wsh, Purpose.internal],
-    [31, UnspentType.p2tr, Purpose.internal],
-  ] as Array<[ChainCode, UnspentType, Purpose]>
-).map(([id, type, purpose]) => Object.freeze({ id, type, purpose })));
+      [1, UnspentType.p2sh, Purpose.internal],
+      [11, UnspentType.p2shP2wsh, Purpose.internal],
+      [21, UnspentType.p2wsh, Purpose.internal],
+      [31, UnspentType.p2tr, Purpose.internal],
+    ] as Array<[ChainCode, UnspentType, Purpose]>
+  ).map(([id, type, purpose]) => Object.freeze({ id, type, purpose }))
+);
 
 export const ChainType = tcomb.irreducible('ChainType', (n) => isValid(n));
 
 const forType = (u: UnspentType): CodesByPurpose => {
   // Do tcomb type checking in js projects that use this lib
   if (!UnspentTypeTcomb.is(u)) {
-   throw new Error(`invalid unspent type: ${u}`);
+    throw new Error(`invalid unspent type: ${u}`);
   }
 
   return new CodesByPurpose(u);
@@ -65,8 +67,7 @@ const typeForCode = (c: ChainCode): UnspentType => {
   return code.type;
 };
 
-export const isValid = (c: ChainCode): boolean =>
-  codeList.some(({ id }) => id === c);
+export const isValid = (c: ChainCode): boolean => codeList.some(({ id }) => id === c);
 
 const throwIfUndefined = <T>(v: T | undefined): T => {
   if (v === undefined) {
@@ -95,9 +96,7 @@ export class CodesByPurpose extends CodeGroup {
 
   constructor(t: UnspentType) {
     const codeMap: Map<Purpose, ChainCode> = new Map(
-      codeList
-        .filter(({ type }) => type === t)
-        .map(({ purpose, id }): [Purpose, ChainCode] => [purpose, id]),
+      codeList.filter(({ type }) => type === t).map(({ purpose, id }): [Purpose, ChainCode] => [purpose, id])
     );
     if (codeMap.size !== 2) {
       throw new Error(`unexpected number of codes for type ${t}`);
@@ -118,9 +117,7 @@ export class CodesByType extends CodeGroup {
 
   constructor(p: Purpose) {
     const codeMap: Map<UnspentType, ChainCode> = new Map(
-      codeList
-        .filter(({ purpose }) => purpose === p)
-        .map(({ type, id }): [UnspentType, ChainCode] => [type, id]),
+      codeList.filter(({ purpose }) => purpose === p).map(({ type, id }): [UnspentType, ChainCode] => [type, id])
     );
     if (codeMap.size !== 4) {
       throw new Error(`unexpected number of codes`);

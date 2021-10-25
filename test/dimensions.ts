@@ -1,44 +1,38 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import * as should from 'should';
 
-import {
-  Codes,
-  Dimensions,
-  IDimensions,
-  IOutputDimensions,
-  OutputDimensions,
-  VirtualSizes,
-} from '../src';
+import { Codes, Dimensions, IDimensions, IOutputDimensions, OutputDimensions, VirtualSizes } from '../src';
 
-import {
-  getOutputDimensionsForUnspentType,
-  UnspentTypePubKeyHash,
-  UnspentTypeScript2of3,
-} from './testutils';
+import { getOutputDimensionsForUnspentType, UnspentTypePubKeyHash, UnspentTypeScript2of3 } from './testutils';
 
-describe('Dimensions Attributes', function() {
-  it('has read-only nInputs and nOutputs', function() {
-    should.throws(() => Dimensions.zero().nInputs = 1, /read-only/);
-    should.throws(() => Dimensions.zero().nOutputs = 1, /read-only/);
+describe('Dimensions Attributes', function () {
+  it('has read-only nInputs and nOutputs', function () {
+    should.throws(() => (Dimensions.zero().nInputs = 1), /read-only/);
+    should.throws(() => (Dimensions.zero().nOutputs = 1), /read-only/);
   });
 });
 
-describe('Output Dimensions', function() {
-  it('instantiates', function() {
+describe('Output Dimensions', function () {
+  it('instantiates', function () {
     const dims: IOutputDimensions = OutputDimensions({ size: 0, count: 0 });
-    should.throws(() => dims.count += 1);
+    should.throws(() => (dims.count += 1));
   });
 });
 
-describe('Dimensions Arithmetic', function() {
-  it('sums correctly', function() {
-    Dimensions.zero().plus({ nP2shInputs: 1 }).should.eql(Dimensions({
-      nP2shInputs: 1,
-      nP2shP2wshInputs: 0,
-      nP2wshInputs: 0,
-      nP2trKeypathInputs: 0,
-      nP2shP2pkInputs: 0,
-      outputs: { size: 0, count: 0 },
-    }));
+describe('Dimensions Arithmetic', function () {
+  it('sums correctly', function () {
+    Dimensions.zero()
+      .plus({ nP2shInputs: 1 })
+      .should.eql(
+        Dimensions({
+          nP2shInputs: 1,
+          nP2shP2wshInputs: 0,
+          nP2wshInputs: 0,
+          nP2trKeypathInputs: 0,
+          nP2shP2pkInputs: 0,
+          outputs: { size: 0, count: 0 },
+        })
+      );
 
     const components = [
       { nP2shInputs: 1 },
@@ -62,31 +56,35 @@ describe('Dimensions Arithmetic', function() {
 
     sum.should.eql(Dimensions.sum(...components));
 
-    sum.should.eql(Dimensions({
-      nP2shInputs: 1,
-      nP2shP2wshInputs: 2,
-      nP2wshInputs: 3,
-      nP2trKeypathInputs: 4,
-      nP2shP2pkInputs: 0,
-      outputs: { size: 67, count: 3 },
-    }));
+    sum.should.eql(
+      Dimensions({
+        nP2shInputs: 1,
+        nP2shP2wshInputs: 2,
+        nP2wshInputs: 3,
+        nP2trKeypathInputs: 4,
+        nP2shP2pkInputs: 0,
+        outputs: { size: 67, count: 3 },
+      })
+    );
 
     sum.nOutputs.should.eql(sum.outputs.count);
   });
 
-  it('provides some typical output sizes', function() {
-    ([
-      [Dimensions.SingleOutput.p2sh, VirtualSizes.txP2shOutputSize],
-      [Dimensions.SingleOutput.p2shP2wsh, VirtualSizes.txP2shP2wshOutputSize],
-      [Dimensions.SingleOutput.p2wsh, VirtualSizes.txP2wshOutputSize],
-      [Dimensions.SingleOutput.p2pkh, VirtualSizes.txP2pkhOutputSize],
-      [Dimensions.SingleOutput.p2wpkh, VirtualSizes.txP2wpkhOutputSize],
-    ] as Array<[IDimensions, number]>).forEach(([dims, size]) => {
+  it('provides some typical output sizes', function () {
+    (
+      [
+        [Dimensions.SingleOutput.p2sh, VirtualSizes.txP2shOutputSize],
+        [Dimensions.SingleOutput.p2shP2wsh, VirtualSizes.txP2shP2wshOutputSize],
+        [Dimensions.SingleOutput.p2wsh, VirtualSizes.txP2wshOutputSize],
+        [Dimensions.SingleOutput.p2pkh, VirtualSizes.txP2pkhOutputSize],
+        [Dimensions.SingleOutput.p2wpkh, VirtualSizes.txP2wpkhOutputSize],
+      ] as Array<[IDimensions, number]>
+    ).forEach(([dims, size]) => {
       dims.getOutputsVSize().should.eql(size);
     });
   });
 
-  it('prevents sum of invalid data', function() {
+  it('prevents sum of invalid data', function () {
     should.doesNotThrow(() => Dimensions.sum({ outputs: { count: 0, size: 0 } }));
     should.doesNotThrow(() => Dimensions.sum({ outputs: { count: 1, size: 1 } }));
     should.throws(() => Dimensions.sum({ nOutputs: 1 }));
@@ -98,7 +96,7 @@ describe('Dimensions Arithmetic', function() {
     should.throws(() => Dimensions.sum({ outputs: { count: 1, size: 1 } }, { outputs: { count: 1, size: 0 } }));
   });
 
-  it('multiplies correctly', function() {
+  it('multiplies correctly', function () {
     Dimensions({
       nP2shInputs: 1,
       nP2shP2wshInputs: 2,
@@ -106,39 +104,37 @@ describe('Dimensions Arithmetic', function() {
       nP2trKeypathInputs: 4,
       nP2shP2pkInputs: 5,
       outputs: { count: 1, size: 22 },
-    }).times(3).should.eql(
-      Dimensions({
-        nP2shInputs: 3,
-        nP2shP2wshInputs: 6,
-        nP2wshInputs: 9,
-        nP2trKeypathInputs: 12,
-        nP2shP2pkInputs: 15,
-        outputs: { count: 3, size: 66 },
-      }),
-    );
+    })
+      .times(3)
+      .should.eql(
+        Dimensions({
+          nP2shInputs: 3,
+          nP2shP2wshInputs: 6,
+          nP2wshInputs: 9,
+          nP2trKeypathInputs: 12,
+          nP2shP2pkInputs: 15,
+          outputs: { count: 3, size: 66 },
+        })
+      );
   });
 });
 
-describe('Dimensions from unspent types', function() {
-  it('determines unspent size according to chain', function() {
+describe('Dimensions from unspent types', function () {
+  it('determines unspent size according to chain', function () {
     Codes.p2sh.values.forEach((chain) =>
-      Dimensions.fromUnspent({ chain })
-        .should.eql(Dimensions.sum({ nP2shInputs: 1 })),
+      Dimensions.fromUnspent({ chain }).should.eql(Dimensions.sum({ nP2shInputs: 1 }))
     );
 
     Codes.p2shP2wsh.values.forEach((chain) =>
-      Dimensions.fromUnspent({ chain })
-        .should.eql(Dimensions.sum({ nP2shP2wshInputs: 1 })),
+      Dimensions.fromUnspent({ chain }).should.eql(Dimensions.sum({ nP2shP2wshInputs: 1 }))
     );
 
     Codes.p2wsh.values.forEach((chain) =>
-      Dimensions.fromUnspent({ chain })
-        .should.eql(Dimensions.sum({ nP2wshInputs: 1 })),
+      Dimensions.fromUnspent({ chain }).should.eql(Dimensions.sum({ nP2wshInputs: 1 }))
     );
 
     Codes.p2tr.values.forEach((chain) =>
-      Dimensions.fromUnspent({ chain })
-        .should.eql(Dimensions.sum({ nP2trKeypathInputs: 1 })),
+      Dimensions.fromUnspent({ chain }).should.eql(Dimensions.sum({ nP2trKeypathInputs: 1 }))
     );
 
     Dimensions.fromUnspents([
@@ -150,17 +146,19 @@ describe('Dimensions from unspent types', function() {
       { chain: Codes.p2wsh.external },
       { chain: Codes.p2tr.internal },
       { chain: Codes.p2tr.external },
-    ]).should.eql(Dimensions({
-      nP2shP2wshInputs: 2,
-      nP2shInputs: 2,
-      nP2wshInputs: 2,
-      nP2trKeypathInputs: 2,
-      nP2shP2pkInputs: 0,
-      outputs: { count: 0, size: 0 },
-    }));
+    ]).should.eql(
+      Dimensions({
+        nP2shP2wshInputs: 2,
+        nP2shInputs: 2,
+        nP2wshInputs: 2,
+        nP2trKeypathInputs: 2,
+        nP2shP2pkInputs: 0,
+        outputs: { count: 0, size: 0 },
+      })
+    );
   });
 
-  it('calculates output dimensions dynamically', function() {
+  it('calculates output dimensions dynamically', function () {
     const expectedSizes = new Map([
       [UnspentTypeScript2of3.p2sh, VirtualSizes.txP2shOutputSize],
       [UnspentTypeScript2of3.p2shP2wsh, VirtualSizes.txP2shP2wshOutputSize],
@@ -170,32 +168,33 @@ describe('Dimensions from unspent types', function() {
       [UnspentTypePubKeyHash.p2wpkh, VirtualSizes.txP2wpkhOutputSize],
     ]);
 
-    [...Object.keys(UnspentTypeScript2of3)
-      .filter((scriptType) => scriptType !== 'p2tr'), // TODO: remove when p2tr signing is supported,
-      ...Object.keys(UnspentTypePubKeyHash)].forEach((type) =>
-      getOutputDimensionsForUnspentType(type)
-      .outputs.size.should.eql(expectedSizes.get(type as any)),
+    [
+      ...Object.keys(UnspentTypeScript2of3).filter((scriptType) => scriptType !== 'p2tr'), // TODO: remove when p2tr signing is supported,
+      ...Object.keys(UnspentTypePubKeyHash),
+    ].forEach((type) =>
+      getOutputDimensionsForUnspentType(type).outputs.size.should.eql(expectedSizes.get(type as any))
     );
   });
 });
 
-describe('Dimensions estimates', function() {
-  it('calculates vsizes', function() {
+describe('Dimensions estimates', function () {
+  it('calculates vsizes', function () {
     const dim = (
       nP2shInputs: number,
       nP2shP2wshInputs: number,
       nP2wshInputs: number,
       nP2trKeypathInputs: number,
-      nOutputs: number,
-    ): IDimensions => Dimensions.sum(
-      {
-        nP2shInputs,
-        nP2shP2wshInputs,
-        nP2wshInputs,
-        nP2trKeypathInputs,
-      },
-      getOutputDimensionsForUnspentType(UnspentTypePubKeyHash.p2pkh).times(nOutputs),
-    );
+      nOutputs: number
+    ): IDimensions =>
+      Dimensions.sum(
+        {
+          nP2shInputs,
+          nP2shP2wshInputs,
+          nP2wshInputs,
+          nP2trKeypathInputs,
+        },
+        getOutputDimensionsForUnspentType(UnspentTypePubKeyHash.p2pkh).times(nOutputs)
+      );
 
     [
       [dim(1, 0, 0, 0, 1), [false, 10, 297, 34, 341]],
