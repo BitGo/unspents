@@ -5,6 +5,19 @@ import { Codes, Dimensions, IDimensions, IOutputDimensions, OutputDimensions, Vi
 
 import { getOutputDimensionsForUnspentType, UnspentTypePubKeyHash, UnspentTypeScript2of3 } from './testutils';
 
+describe('VirtualSizes', function () {
+  it('have expected values', function () {
+    VirtualSizes.should.match({
+      // check computed values only
+      txP2shInputSize: 298,
+      txP2shP2wshInputSize: 140,
+      txP2wshInputSize: 105,
+      txP2trKeypathInputSize: 58,
+      txP2shP2pkInputSize: 151,
+    });
+  });
+});
+
 describe('Dimensions Attributes', function () {
   it('has read-only nInputs and nOutputs', function () {
     should.throws(() => (Dimensions.zero().nInputs = 1), /read-only/);
@@ -197,17 +210,17 @@ describe('Dimensions estimates', function () {
       );
 
     [
-      [dim(1, 0, 0, 0, 1), [false, 10, 297, 34, 341]],
+      [dim(1, 0, 0, 0, 1), [false, 10, 298, 34, 342]],
       [dim(0, 1, 0, 0, 1), [true, 11, 140, 34, 185]],
       [dim(0, 0, 1, 0, 1), [true, 11, 105, 34, 150]],
       [dim(0, 0, 0, 1, 1), [true, 11, 58, 34, 103]],
-      [dim(2, 0, 0, 0, 1), [false, 10, 594, 34, 638]],
+      [dim(2, 0, 0, 0, 1), [false, 10, 596, 34, 640]],
       [dim(0, 2, 0, 0, 1), [true, 11, 280, 34, 325]],
       [dim(0, 0, 2, 0, 1), [true, 11, 210, 34, 255]],
-      [dim(1, 1, 1, 0, 1), [true, 11, 542, 34, 587]],
-      [dim(1, 1, 1, 0, 2), [true, 11, 542, 68, 621]],
+      [dim(1, 1, 1, 0, 1), [true, 11, 543, 34, 588]],
+      [dim(1, 1, 1, 0, 2), [true, 11, 543, 68, 622]],
 
-      [dim(1, 0, 0, 1, 1), [true, 11, 355, 34, 400]],
+      [dim(1, 0, 0, 1, 1), [true, 11, 356, 34, 401]],
       [dim(0, 1, 0, 1, 1), [true, 11, 198, 34, 243]],
     ].forEach(([dimensions, expectedSizes]) => {
       dimensions = dimensions as IDimensions;

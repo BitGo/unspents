@@ -3,6 +3,16 @@ import * as _ from 'lodash';
 import * as t from 'tcomb';
 
 import Codes, { ChainCode } from './codes';
+import {
+  getInputComponentsWeight,
+  InputComponents,
+  inputComponentsP2sh,
+  inputComponentsP2shP2pk,
+  inputComponentsP2shP2wsh,
+  inputComponentsP2trKeySpend,
+  inputComponentsP2wsh,
+} from './inputWeights';
+import { compactSize } from './scriptSizes';
 import { PositiveInteger } from './types';
 
 /*
@@ -60,82 +70,28 @@ https://github.com/bitcoinjs/bitcoinjs-lib/blob/v3.3.2/src/transaction.js#L194-L
 ```
 */
 
+function getVirtualInputSizeFromComponents(components: InputComponents): number {
+  return Math.ceil(getInputComponentsWeight(components) / 4);
+}
+
 // Constants for signed TX input and output vsizes.
 // See https://bitcoincore.org/en/segwit_wallet_dev/#transaction-serialization for full description
 // FIXME(BG-9233): use weight units instead
 export const VirtualSizes = Object.freeze({
   // FIXME(BG-7873): add support for signature grinding
 
-  //
-  // Input sizes
-  //
-  //
   // Size of a P2PKH input with (un)compressed key
-  // Source: https://bitcoin.stackexchange.com/questions/48279/how-big-is-the-input-of-a-p2pkh-transaction
-  // - 36 vbyte outpoint
-  // -  4 vbyte nSequence
-  // -  1 vbyte scriptSig length
-  // -  1 vbyte opcode OP_PUSH
-  // - 72 vbyte signature (upper end)
-  // -  1 vbyte opcode OP_PUSH
-  // - 33 vbyte compressed pubkey
+  /** @deprecated */
   txP2pkhInputSizeCompressedKey: 148,
-
-  // - 65 vbyte uncompressed pubkey
+  /** @deprecated */
   txP2pkhInputSizeUncompressedKey: 180,
 
-  // The distribution of input weights for a 2-of-3 p2sh input with two signatures is as follows
-  //   ┌───────┬─┬───────┬─┬───────┐
-  //   │ 1172  │…│ 1184  │…│ 1188  │
-  //   ├───────┼─┼───────┼─┼───────┤
-  //   │ 0.270 │…│ 0.496 │…│ 0.234 │
-  //   └───────┴─┴───────┴─┴───────┘
-  // Which corresponds to vSizes [293, 296, 297].
-  // The 3-byte gap is due to the fact that a single-byte increase of the total scriptSig length from 252 to 253
-  // requires another 2-byte increase of the encoded scriptSig length.
-  // For N inputs, the overestimation will be below 2 * N vbytes for 80% of transactions.
-  txP2shInputSize: 297,
-
-  // The distribution of input weights for a 2-of-3 p2shP2wsh input with two signatures is as follows
-  //   ┌───────┬───────┬───────┐
-  //   │ 556   │ 557   │ 558   │
-  //   ├───────┼───────┼───────┤
-  //   │ 0.281 │ 0.441 │ 0.277 │
-  //   └───────┴───────┴───────┘
-  // Which corresponds to a vSize  of 139.5 on the upper side. We will round up to 140.
-  // For N inputs, the overestimation will be below N vbytes for all transactions.
-  txP2shP2wshInputSize: 140,
-
-  // The distribution of input weights for a 2-of-3 p2wsh input with two signatures is as follows
-  //   ┌───────┬───────┬───────┬───────┐
-  //   │ 415   │ 416   │ 417   │ 418   │
-  //   ├───────┼───────┼───────┼───────┤
-  //   │ 0.002 │ 0.246 │ 0.503 │ 0.249 │
-  //   └───────┴───────┴───────┴───────┘
-  // This corresponds to a vSize of 104.5 on the upper end, which we round up to 105.
-  // For N inputs, the overestimation will be below N vbytes for all transactions.
-  txP2wshInputSize: 105,
-
-  // TODO: Calculate script path spend sizes for p2tr inputs
-  // Keypath spend size is calculated by adding:
-  //   - 36 vbyte outpoint
-  //   - 1 vbyte scriptSig
-  //   - 4 vbyte nSequence
-  //   - 1 WU witness item count
-  //   - 1 WU witness item size
-  //   - 64 WU schnorr signature
-  // 32+4+1+4+(1+1+64)/4 = 57.5 vB - rounded up to 58
-  // See: https://murchandamus.medium.com/2-of-3-multisig-inputs-using-pay-to-taproot-d5faf2312ba3
-  txP2trKeypathInputSize: 58,
-
-  // Single-signature single-pubkey
-  // - 36 vbyte outpoint
-  // -  4 vbyte nSequence
-  // -  1 vbyte scriptSig length
-  // -  1 vbyte opcode OP_PUSH
-  // - 72 vbyte signature (upper end)
-  // - 35 vbyte P2PK script
-  txP2shP2pkInputSize: 150,
+  // Input sizes
+  txP2shInputSize: getVirtualInputSizeFromComponents(inputComponentsP2sh),
+  txP2shP2wshInputSize: getVirtualInputSizeFromComponents(inputComponentsP2shP2wsh),
+  txP2wshInputSize: getVirtualInputSizeFromComponents(inputComponentsP2wsh),
+  txP2trKeypathInputSize: getVirtualInputSizeFromComponents(inputComponentsP2trKeySpend),
+  txP2shP2pkInputSize: getVirtualInputSizeFromComponents(inputComponentsP2shP2pk),
 
   //
   // Output sizes
@@ -177,28 +133,6 @@ export const VirtualSizes = Object.freeze({
   // Thus, the vsize is only increased by one.
   txSegOverheadVSize: 11,
 });
-
-/**
- * https://bitcoin.org/en/developer-reference#compactsize-unsigned-integers
- * https://github.com/bitcoinjs/varuint-bitcoin/blob/1d5b253/index.js#L79
- * @param integer
- * @return {number} - The compact size the integer requires when serialized in a transaction
- */
-const compactSize = (integer: number) => {
-  if (!PositiveInteger.is(integer)) {
-    throw new TypeError(`expected positive integer`);
-  }
-  if (integer <= 252) {
-    return 1;
-  }
-  if (integer <= 0xffff) {
-    return 3;
-  }
-  if (integer <= 0xffffffff) {
-    return 5;
-  }
-  return 9;
-};
 
 export interface IOutputDimensions {
   count: number;
