@@ -51,6 +51,7 @@ describe('Input Script Sizes (Worst-Case)', function () {
   [...Object.keys(UnspentTypeScript2of3), UnspentTypeP2shP2pk].forEach((inputType: string) => {
     describe(`inputType=${inputType}`, function () {
       if (inputType === 'p2tr') {
+        // FIXME: validate p2tr spending sizes
         return;
       }
 
