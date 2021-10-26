@@ -5,6 +5,19 @@ import { Codes, Dimensions, IDimensions, IOutputDimensions, OutputDimensions, Vi
 
 import { getOutputDimensionsForUnspentType, UnspentTypePubKeyHash, UnspentTypeScript2of3 } from './testutils';
 
+describe('VirtualSizes', function () {
+  it('have expected values', function () {
+    VirtualSizes.should.match({
+      // check computed values only
+      txP2shInputSize: 298,
+      txP2shP2wshInputSize: 140,
+      txP2wshInputSize: 105,
+      txP2trKeypathInputSize: 58,
+      txP2shP2pkInputSize: 151,
+    });
+  });
+});
+
 describe('Dimensions Attributes', function () {
   it('has read-only nInputs and nOutputs', function () {
     should.throws(() => (Dimensions.zero().nInputs = 1), /read-only/);

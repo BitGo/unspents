@@ -70,12 +70,8 @@ https://github.com/bitcoinjs/bitcoinjs-lib/blob/v3.3.2/src/transaction.js#L194-L
 ```
 */
 
-function getVirtualInputSizeFromComponents(components: InputComponents, expected: number): number {
-  const vSize = Math.ceil(getInputComponentsWeight(components) / 4);
-  if (vSize !== expected) {
-    throw new Error(`vSize ${vSize} does not match expected ${expected}`);
-  }
-  return vSize;
+function getVirtualInputSizeFromComponents(components: InputComponents): number {
+  return Math.ceil(getInputComponentsWeight(components) / 4);
 }
 
 // Constants for signed TX input and output vsizes.
@@ -91,11 +87,11 @@ export const VirtualSizes = Object.freeze({
   txP2pkhInputSizeUncompressedKey: 180,
 
   // Input sizes
-  txP2shInputSize: getVirtualInputSizeFromComponents(inputComponentsP2sh, 298),
-  txP2shP2wshInputSize: getVirtualInputSizeFromComponents(inputComponentsP2shP2wsh, 140),
-  txP2wshInputSize: getVirtualInputSizeFromComponents(inputComponentsP2wsh, 105),
-  txP2trKeypathInputSize: getVirtualInputSizeFromComponents(inputComponentsP2trKeySpend, 58),
-  txP2shP2pkInputSize: getVirtualInputSizeFromComponents(inputComponentsP2shP2pk, 151),
+  txP2shInputSize: getVirtualInputSizeFromComponents(inputComponentsP2sh),
+  txP2shP2wshInputSize: getVirtualInputSizeFromComponents(inputComponentsP2shP2wsh),
+  txP2wshInputSize: getVirtualInputSizeFromComponents(inputComponentsP2wsh),
+  txP2trKeypathInputSize: getVirtualInputSizeFromComponents(inputComponentsP2trKeySpend),
+  txP2shP2pkInputSize: getVirtualInputSizeFromComponents(inputComponentsP2shP2pk),
 
   //
   // Output sizes
