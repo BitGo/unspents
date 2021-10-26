@@ -1,3 +1,7 @@
+/**
+ * Defines input sizes for BitGo signature scripts.
+ */
+
 import varuint from 'varuint-bitcoin';
 
 export function varSliceSize(someScript: Sized): number {
@@ -54,7 +58,7 @@ export function getInputComponentsWeight(c: InputComponents): number {
 const op0Size = 1;
 const opPushSize = 1;
 const ecdsaSignatureSize = 72;
-const schnorrSignatureSize = 64;
+const schnorrSignatureNoSighashSize = 64;
 const p2msPubScriptSize = 105;
 const p2wshPubScriptSize = 34;
 const p2pkPubScriptSize = 35;
@@ -86,7 +90,7 @@ export const inputComponentsP2wsh: InputComponents = {
 // See: https://murchandamus.medium.com/2-of-3-multisig-inputs-using-pay-to-taproot-d5faf2312ba3
 export const inputComponentsP2trKeySpend: InputComponents = {
   script: [],
-  witness: [schnorrSignatureSize],
+  witness: [schnorrSignatureNoSighashSize],
 };
 
 export const inputComponentsP2shP2pk: InputComponents = {
