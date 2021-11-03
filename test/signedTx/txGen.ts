@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+
 import * as bitcoin from '@bitgo/utxo-lib';
 import * as bip32 from 'bip32';
 import _ from 'lodash';
@@ -43,7 +45,7 @@ function createUnspent(pubkeys: Buffer[], inputType: string, value: number): IUn
  * @param unspentType {String} - one of UnspentTypeScript2of3 or UnspentTypePubKeyHash
  * @return {String} address
  */
-const createScriptPubKey = (keys: bip32.BIP32Interface[], unspentType: TestUnspentType) => {
+const createScriptPubKey = (keys: bip32.BIP32Interface[], unspentType: TestUnspentType): Buffer => {
   const pubkeys = keys.map((key) => key.publicKey);
   if (typeof unspentType === 'string' && unspentType in UnspentTypeScript2of3) {
     return createUnspent(pubkeys, unspentType, 0).scriptPubKey;
@@ -76,7 +78,7 @@ function signInput(
   txBuilder: bitcoin.TransactionBuilder,
   index: number,
   keys: bip32.BIP32Interface[],
-  unspent: IUnspent,
+  unspent: IUnspent
 ) {
   const nKeys = unspent.inputType === 'p2shP2pk' ? 1 : 2;
   const prevOutScriptType = bitcoin.bitgo.outputScripts.isScriptType2Of3(unspent.inputType)
@@ -86,13 +88,11 @@ function signInput(
     txBuilder.sign({
       prevOutScriptType,
       vin: index,
-      keyPair,
+      keyPair: Object.assign(keyPair, { network: txBuilder.network }),
       redeemScript: unspent.redeemScript,
-      witnessValue: (unspent.inputType === 'p2shP2pk' || unspent.inputType === 'p2sh')
-        ? undefined
-        : unspent.value,
+      witnessValue: unspent.inputType === 'p2shP2pk' || unspent.inputType === 'p2sh' ? undefined : unspent.value,
       witnessScript: unspent.witnessScript,
-    }),
+    })
   );
 }
 
@@ -105,28 +105,32 @@ class TxCombo {
     public inputTypes: string[],
     public outputTypes: TestUnspentType[],
     public expectedDims: IDimensions = Dimensions.zero(),
-    public inputValue: number = 10,
+    public inputValue: number = 10
   ) {
     this.unspents = inputTypes.map((inputType) =>
-      createUnspent(keys.map((key) => key.publicKey), inputType, this.inputValue),
+      createUnspent(
+        keys.map((key) => key.publicKey),
+        inputType,
+        this.inputValue
+      )
     );
     this.inputTx = createInputTx(this.unspents, inputValue);
   }
 
-  public getBuilderWithUnsignedTx() {
+  public getBuilderWithUnsignedTx(): bitcoin.TransactionBuilder {
     const txBuilder = new bitcoin.TransactionBuilder(bitcoin.networks.bitcoin);
     this.inputTx.outs.forEach(({}, i: number) => txBuilder.addInput(this.inputTx, i));
-    this.outputTypes.forEach(
-      (unspentType) => txBuilder.addOutput(createScriptPubKey(this.keys, unspentType), this.inputValue),
+    this.outputTypes.forEach((unspentType) =>
+      txBuilder.addOutput(createScriptPubKey(this.keys, unspentType), this.inputValue)
     );
     return txBuilder;
   }
 
-  public getUnsignedTx() {
+  public getUnsignedTx(): bitcoin.Transaction {
     return this.getBuilderWithUnsignedTx().buildIncomplete();
   }
 
-  public getSignedTx() {
+  public getSignedTx(): bitcoin.Transaction {
     const txBuilder = this.getBuilderWithUnsignedTx();
     this.unspents.forEach((unspent, i) => {
       signInput(txBuilder, i, this.keys, unspent);
@@ -142,54 +146,49 @@ const runCombinations = (
     outputTypes,
     maxNOutputs,
   }: {
-    inputTypes: string[],
-    maxNInputs: number,
-    outputTypes: TestUnspentType[],
-    maxNOutputs: number,
+    inputTypes: string[];
+    maxNInputs: number;
+    outputTypes: TestUnspentType[];
+    maxNOutputs: number;
   },
-  callback: (inputCombo: string[], outputCombo: TestUnspentType[]) => void,
-) => {
+  callback: (inputCombo: string[], outputCombo: TestUnspentType[]) => void
+): void => {
   // Create combinations of different input and output types. Length between 1 and 3.
   const inputCombinations = _.flatten(
     // @ts-ignore
-    [...Array(maxNInputs)].map((__, i) => _.combinations(inputTypes, i + 1)),
+    [...Array(maxNInputs)].map((__, i) => _.combinations(inputTypes, i + 1))
   );
   const outputCombinations = _.flatten(
     // @ts-ignore
-    [...Array(maxNOutputs)].map((__, i) => _.combinations(outputTypes, i + 1)),
+    [...Array(maxNOutputs)].map((__, i) => _.combinations(outputTypes, i + 1))
   );
 
   inputCombinations.forEach((inputTypeCombo) =>
     outputCombinations.forEach((outputTypeCombo) => {
       callback(inputTypeCombo, outputTypeCombo);
-    }),
+    })
   );
 };
 
 class Histogram {
-  public total: number = 0;
+  public total = 0;
 
-  constructor(
-    public map: Map<number, number> = new Map(),
-  ) { }
+  constructor(public map: Map<number, number> = new Map()) {}
 
-  public add(size: number) {
+  public add(size: number): void {
     this.map.set(size, (this.map.get(size) || 0) + 1);
     this.total++;
   }
 
-  public asSortedArray() {
+  public asSortedArray(): number[][] {
     return [...this.map.entries()].sort(([a], [b]) => a - b);
   }
 
-  public asFullSortedArray() {
-    return _.range(
-      this.getPercentile(0),
-      this.getPercentile(1),
-    ).map((v) => [v, this.map.get(v) || 0]);
+  public asFullSortedArray(): number[][] {
+    return _.range(this.getPercentile(0), this.getPercentile(1)).map((v) => [v, this.map.get(v) || 0]);
   }
 
-  public getPercentile(p: number) {
+  public getPercentile(p: number): number {
     if (0 > p || p > 1) {
       throw new Error(`p must be between 0 and 1`);
     }
@@ -197,7 +196,7 @@ class Histogram {
     let sum = 0;
     for (const [k, v] of this.asSortedArray()) {
       sum += v;
-      if ((sum / this.total) >= p) {
+      if (sum / this.total >= p) {
         return k;
       }
     }
@@ -205,17 +204,16 @@ class Histogram {
     throw new Error('could not find percentile');
   }
 
-  public toString() {
+  public toString(): string {
     const keys = [...this.map.keys()].sort((a, b) => a - b);
     return `[${keys.map((k) => `[${k}, ${this.map.get(k)}]`).join(' ')}]`;
   }
 }
 
-const getKeyTriplets = (prefix: string, count: number) => [...Array(count)].map(
-  (v, i) => [1, 2, 3].map(
-    (j) => bip32.fromSeed(Buffer.alloc(16, `${prefix}/${i}/${j}`), bitcoin.networks.bitcoin),
-  ),
-);
+const getKeyTriplets = (prefix: string, count: number) =>
+  [...Array(count)].map((v, i) =>
+    [1, 2, 3].map((j) => bip32.fromSeed(Buffer.alloc(16, `${prefix}/${i}/${j}`), bitcoin.networks.bitcoin))
+  );
 
 /**
  *
@@ -237,33 +235,29 @@ const runSignedTransactions = (
     outputTypes,
     nOutputKeyTriplets,
   }: {
-    inputTypes: Array<{ inputType: string, count: number}>,
-    nInputKeyTriplets: number,
-    outputTypes: TestUnspentType[],
-    nOutputKeyTriplets: number,
+    inputTypes: Array<{ inputType: string; count: number }>;
+    nInputKeyTriplets: number;
+    outputTypes: TestUnspentType[];
+    nOutputKeyTriplets: number;
   },
-  callback: (
-    inputType: string,
-    inputCount: number,
-    outputType: TestUnspentType,
-    txs: any,
-  ) => void,
-) => {
+  callback: (inputType: string, inputCount: number, outputType: TestUnspentType, txs: any) => void
+): void => {
   const inputKeyTriplets = getKeyTriplets('test/input/', nInputKeyTriplets);
   const outputKeyTriplets = getKeyTriplets('test/output/', nOutputKeyTriplets);
   const outputValue = 1e8;
 
   inputTypes.forEach(({ inputType, count: inputCount }) => {
-    const inputTxs = inputKeyTriplets
-      .map((inputKeys) => {
-        const unspents = [...Array(inputCount)].map(() => createUnspent(
+    const inputTxs = inputKeyTriplets.map((inputKeys) => {
+      const unspents = [...Array(inputCount)].map(() =>
+        createUnspent(
           inputKeys.map((key) => key.publicKey),
           inputType,
-          outputValue,
-        ));
-        const inputTx = createInputTx(unspents, outputValue);
-        return { inputKeys, unspents, inputTx };
-      });
+          outputValue
+        )
+      );
+      const inputTx = createInputTx(unspents, outputValue);
+      return { inputKeys, unspents, inputTx };
+    });
 
     outputTypes.forEach((outputType) => {
       const outputs = outputKeyTriplets.map((outputKeys) => createScriptPubKey(outputKeys, outputType));
@@ -271,10 +265,9 @@ const runSignedTransactions = (
       const txs = {
         forEach(cb: (tx: bitcoin.Transaction) => void) {
           inputTxs.forEach(({ inputKeys, unspents, inputTx }) => {
-
             outputs.forEach((scriptPubKey) => {
               const txBuilder = new bitcoin.TransactionBuilder(bitcoin.networks.bitcoin, Infinity);
-              inputTx.outs.forEach(( v: any, i: number) => txBuilder.addInput(inputTx, i));
+              inputTx.outs.forEach((v: any, i: number) => txBuilder.addInput(inputTx, i));
               txBuilder.addOutput(scriptPubKey, outputValue);
               unspents.forEach((unspent, i) => {
                 signInput(txBuilder, i, inputKeys, unspent);
@@ -291,9 +284,4 @@ const runSignedTransactions = (
   });
 };
 
-export {
-  TxCombo,
-  Histogram,
-  runCombinations,
-  runSignedTransactions,
-};
+export { TxCombo, Histogram, runCombinations, runSignedTransactions };

@@ -10,6 +10,7 @@
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "test": "mocha --require ts-node/register \"test/**/*.ts\"",
+    "lint": "eslint --quiet .",
     "generate_drone": "drone jsonnet --stream"
   },
   "repository": {
@@ -27,21 +28,24 @@
   },
   "homepage": "https://github.com/BitGo/unspents#readme",
   "devDependencies": {
-    "@bitgo/utxo-lib": "~2.2.0-rc.3",
     "@types/lodash": "~4.14.123",
     "@types/mocha": "~5.2.6",
     "@types/node": "~14.17.5",
-    "eslint": "~8.0.0",
+    "@typescript-eslint/eslint-plugin": "^4.23.0",
+    "@typescript-eslint/parser": "^4.23.0",
+    "eslint": "^7.26.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-prettier": "^3.4.0",
     "lodash.combinations": "~18.9.19",
     "mocha": "~9.1.2",
     "mocha-junit-reporter": "~2.0.2",
+    "prettier": "~2.4.1",
     "should": "~13.2.3",
     "ts-node": "~8.0.3",
-    "tslint": "~5.14.0",
-    "tslint-eslint-rules": "~5.4.0",
     "typescript": "~4.4.3"
   },
   "dependencies": {
+    "@bitgo/utxo-lib": "~2.2.0-rc.3",
     "lodash": "~4.17.21",
     "tcomb": "~3.2.29"
   }

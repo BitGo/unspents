@@ -1,3 +1,4 @@
+import { IDimensions } from '../src';
 import * as utxo from '../src';
 
 /**
@@ -6,8 +7,7 @@ import * as utxo from '../src';
  * @param args
  * @return map with string keys and symbol values
  */
-const makeEnum = (...args: string[]): any =>
-  args.reduce((obj, key) => Object.assign(obj, { [key]: key }), {});
+const makeEnum = (...args: string[]): any => args.reduce((obj, key) => Object.assign(obj, { [key]: key }), {});
 
 export const UnspentTypeP2shP2pk = 'p2shP2pk';
 
@@ -26,9 +26,9 @@ const UnspentTypePubKeyHash: {
 export type TestUnspentType = string | UnspentTypeOpReturn;
 
 class UnspentTypeOpReturn {
-  constructor(public size: number) { }
+  constructor(public size: number) {}
 
-  public toString() {
+  public toString(): string {
     return `opReturn(${this.size})`;
   }
 }
@@ -38,7 +38,7 @@ class UnspentTypeOpReturn {
  * @param unspentType - one of UnspentTypeScript2of3
  * @return Dimensions
  */
-const getInputDimensionsForUnspentType = (unspentType: TestUnspentType) => {
+const getInputDimensionsForUnspentType = (unspentType: TestUnspentType): IDimensions => {
   switch (unspentType) {
     case UnspentTypeScript2of3.p2sh:
       return utxo.Dimensions.sum({ nP2shInputs: 1 });
@@ -54,7 +54,7 @@ const getInputDimensionsForUnspentType = (unspentType: TestUnspentType) => {
   throw new Error(`no input dimensions for ${unspentType}`);
 };
 
-const getOutputDimensionsForUnspentType = (unspentType: TestUnspentType) => {
+const getOutputDimensionsForUnspentType = (unspentType: TestUnspentType): IDimensions => {
   /* The values here are validated in the test 'calculates output dimensions dynamically' */
   switch (unspentType) {
     case UnspentTypeScript2of3.p2sh:

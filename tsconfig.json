@@ -2,18 +2,18 @@
   "compilerOptions": {
     "module": "commonjs",
     "esModuleInterop": true,
-    "target": "es6",
+    "target": "es2017",
     "noImplicitAny": true,
     "sourceMap": true,
     "outDir": "dist",
     "baseUrl": ".",
-    "lib": ["es6", "es2016.array.include"],
+    "lib": ["es2017"],
     "strict": true,
     "declaration": true,
-    "types": ["lodash", "node", "mocha"]
+    "types": ["lodash", "node", "mocha"],
+    "paths": {
+      "bitcoinjs-lib/src/*": ["node_modules/bitcoinjs-lib/types/*"]
+    }
   },
-  "include": [
-    "src/**/*",
-    "test/**/*"
-  ]
+  "include": ["src/**/*", "test/**/*"]
 }
