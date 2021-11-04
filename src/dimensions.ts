@@ -609,7 +609,14 @@ Dimensions.prototype.times = function (factor: number) {
  * @deprecated use `dimension.nInputs` instead
  */
 Dimensions.prototype.getNInputs = function () {
-  return this.nP2shInputs + this.nP2shP2wshInputs + this.nP2wshInputs + this.nP2trKeypathInputs;
+  return (
+    this.nP2shInputs +
+    this.nP2shP2wshInputs +
+    this.nP2wshInputs +
+    this.nP2trKeypathInputs +
+    this.nP2trScriptPathLevel1Inputs +
+    this.nP2trScriptPathLevel2Inputs
+  );
 };
 
 /**
