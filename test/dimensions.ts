@@ -112,7 +112,7 @@ describe('Dimensions Arithmetic', function () {
   });
 
   it('multiplies correctly', function () {
-    Dimensions({
+    const d = Dimensions({
       nP2shInputs: 1,
       nP2shP2wshInputs: 2,
       nP2wshInputs: 3,
@@ -121,20 +121,22 @@ describe('Dimensions Arithmetic', function () {
       nP2trScriptPathLevel2Inputs: 6,
       nP2shP2pkInputs: 7,
       outputs: { count: 1, size: 22 },
-    })
-      .times(3)
-      .should.eql(
-        Dimensions({
-          nP2shInputs: 3,
-          nP2shP2wshInputs: 6,
-          nP2wshInputs: 9,
-          nP2trKeypathInputs: 12,
-          nP2trScriptPathLevel1Inputs: 15,
-          nP2trScriptPathLevel2Inputs: 18,
-          nP2shP2pkInputs: 21,
-          outputs: { count: 3, size: 66 },
-        })
-      );
+    }).times(3);
+
+    d.should.eql(
+      Dimensions({
+        nP2shInputs: 3,
+        nP2shP2wshInputs: 6,
+        nP2wshInputs: 9,
+        nP2trKeypathInputs: 12,
+        nP2trScriptPathLevel1Inputs: 15,
+        nP2trScriptPathLevel2Inputs: 18,
+        nP2shP2pkInputs: 21,
+        outputs: { count: 3, size: 66 },
+      })
+    );
+
+    d.getNInputs().should.eql(63);
   });
 });
 

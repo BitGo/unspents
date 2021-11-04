@@ -178,6 +178,7 @@ export interface IDimensions extends IBaseDimensions {
   times(n: number): IDimensions;
 
   isSegwit(): boolean;
+  getNInputs(): number;
   getOverheadVSize(): number;
   getInputsVSize(): number;
   getOutputsVSize(): number;
