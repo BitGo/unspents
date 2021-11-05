@@ -137,6 +137,7 @@ describe('Dimensions Arithmetic', function () {
     );
 
     d.getNInputs().should.eql(63);
+    d.nInputs.should.eql(63);
   });
 });
 
