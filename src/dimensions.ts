@@ -287,8 +287,8 @@ Object.defineProperty(Dimensions.prototype, 'nInputs', {
       this.nP2shP2wshInputs +
       this.nP2wshInputs +
       this.nP2trKeypathInputs +
-      this.nP2trKeypathScriptPathLevel1Inputs +
-      this.nP2trKeypathScriptPathLevel2Inputs
+      this.nP2trScriptPathLevel1Inputs +
+      this.nP2trScriptPathLevel2Inputs
     );
   },
 
